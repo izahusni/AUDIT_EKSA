@@ -80,7 +80,7 @@ if 'pangkalan_data' not in st.session_state:
 
 # --- FUNGSI MUAT DATA DARI GOOGLE SHEETS ---
 def senkron_data_dari_gsheets():
-    if conn and "PAUTAN_GOOGLE_SHEETS_ANDA" not in URL_GSHEETS:
+    if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
         try:
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
             if not df_existing.empty:
@@ -318,7 +318,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
                 # SIMPAN DATA KE GOOGLE SHEETS
-                if conn and "PAUTAN_GOOGLE_SHEETS_ANDA" not in URL_GSHEETS:
+                if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
                     try:
                         baris_baru = []
                         tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
