@@ -6,11 +6,21 @@ import plotly.express as px
 import re
 import os
 import streamlit.components.v1 as components
+from streamlit_gsheets import GSheetsConnection
 
 # --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Sistem Audit EKSA", layout="wide")
+st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
 
-# --- CSS KHAS UNTUK ISOLASI CETAKAN (HANYA LALUKAN JADUAL LAPORAN) ---
+# PAUTAN GOOGLE SHEETS ANDA (Gantikan URL di bawah dengan URL Google Sheets anda)
+URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
+
+# Sambungan ke Google Sheets
+try:
+    conn = st.connection("gsheets", type=GSheetsConnection)
+except Exception as e:
+    conn = None
+
+# --- CSS KHAS ---
 st.markdown("""
     <style>
     @media print {
@@ -26,7 +36,15 @@ st.markdown("""
             margin: 0 !important;
             width: 100% !important;
             max-width: none !important;
+            background-color: #ffffff !important;
+            color: #000000 !important;
         }
+    }
+    .jadual-laporan-wrapper {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+        padding: 15px;
+        border-radius: 8px;
     }
     .jadual-laporan {
         width: 100%;
@@ -35,27 +53,67 @@ st.markdown("""
         font-size: 13px;
         text-align: center;
         margin-top: 10px;
+        background-color: #ffffff !important;
+        color: #000000 !important;
     }
     .jadual-laporan th, .jadual-laporan td {
-        border: 1.5px solid #000;
+        border: 1.5px solid #000000 !important;
         padding: 6px 8px;
+        color: #000000 !important;
+        background-color: #ffffff;
     }
     .jadual-laporan th {
         font-weight: bold;
+        color: #000000 !important;
     }
-    .header-effektif { background-color: #fef3c7; }
-    .header-komited { background-color: #bfdbfe; }
-    .header-sepakat { background-color: #fca5a5; }
-    .header-aktif { background-color: #bbf7d0; }
-    .header-kelabu { background-color: #e5e7eb; }
+    .header-effektif { background-color: #fef3c7 !important; color: #000000 !important; }
+    .header-komited { background-color: #bfdbfe !important; color: #000000 !important; }
+    .header-sepakat { background-color: #fca5a5 !important; color: #000000 !important; }
+    .header-aktif { background-color: #bbf7d0 !important; color: #000000 !important; }
+    .header-kelabu { background-color: #e5e7eb !important; color: #000000 !important; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. PENGURUSAN PANGKALAN DATA BERBILANG JURUAUDIT ---
+# --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
 if 'pangkalan_data' not in st.session_state:
     st.session_state.pangkalan_data = {}
 
-# --- 3. FUNGSI BACAAN PINTAR ---
+# --- FUNGSI MUAT DATA DARI GOOGLE SHEETS ---
+def senkron_data_dari_gsheets():
+    if conn and "PAUTAN_GOOGLE_SHEETS_ANDA" not in URL_GSHEETS:
+        try:
+            df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+            if not df_existing.empty:
+                for _, row in df_existing.iterrows():
+                    z = str(row['Zon'])
+                    j = str(row['Juruaudit'])
+                    k = str(row['Komponen'])
+                    no_i = str(row['No_Item'])
+                    
+                    if z not in st.session_state.pangkalan_data:
+                        st.session_state.pangkalan_data[z] = {}
+                    if j not in st.session_state.pangkalan_data[z]:
+                        st.session_state.pangkalan_data[z][j] = {}
+                        
+                    st.session_state.pangkalan_data[z][j]['_lokasi_khusus'] = str(row['Lokasi'])
+                    
+                    if k not in st.session_state.pangkalan_data[z][j]:
+                        st.session_state.pangkalan_data[z][j][k] = {}
+                        
+                    st.session_state.pangkalan_data[z][j][k][no_i] = {
+                        'Markah': int(row['Markah']),
+                        'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
+                        'Gambar': None,
+                        'Ulasan_Susulan': '',
+                        'Gambar_Susulan': None,
+                        'Tarikh_Susulan': datetime.date.today()
+                    }
+        except Exception:
+            pass
+
+senkron_data_dari_gsheets()
+
+# --- 3. FUNGSI BACAAN EXCEL ---
 @st.cache_data
 def muat_data_eksa(file_path):
     xls = pd.ExcelFile(file_path)
@@ -120,7 +178,6 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI PENGIRAAN PRESTASI ---
 def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
@@ -145,11 +202,15 @@ def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
     return ringkasan_markah, total_markah_semua, total_penuh_semua, peratusan_keseluruhan
 
 
-# --- 4. NAVIGASI DI SIDEBAR DENGAN LOGO ---
-fail_logo = 'logo.png'
+# --- 4. SIDEBAR LOGO ---
+fail_logo = None
+for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jpg']:
+    if os.path.exists(nm):
+        fail_logo = nm
+        break
 
-if os.path.exists(fail_logo):
-    st.sidebar.image(fail_logo, width=180)
+if fail_logo:
+    st.sidebar.image(fail_logo, use_container_width=True)
 
 st.sidebar.title("📝 Sistem Audit EKSA")
 st.sidebar.markdown("---")
@@ -165,9 +226,7 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
 # PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
 # ==========================================
 if menu_paparan == "📋 Modul Kerja (Borang)":
-    
-    # PAPARAN LOGO DI ATAS TAJUK UTAMA (PADA UTAMA)
-    if os.path.exists(fail_logo):
+    if fail_logo:
         st.image(fail_logo, width=150)
         
     st.title("📋 Borang Penilaian EKSA")
@@ -256,7 +315,40 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 
             hantar = st.form_submit_button("Simpan Markah & Gambar")
             if hantar:
-                st.success(f"Rekod untuk {komponen_pilihan} berjaya disimpan ke dalam fail {zon_audit} - {lokasi_khusus} (Oleh: {nama_juruaudit})!")
+                st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
+                
+                # SIMPAN DATA KE GOOGLE SHEETS
+                if conn and "PAUTAN_GOOGLE_SHEETS_ANDA" not in URL_GSHEETS:
+                    try:
+                        baris_baru = []
+                        tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
+                        for no_i, d_item in data_semasa[komponen_pilihan].items():
+                            item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
+                            baris_baru.append({
+                                'Tarikh': tarikh_sekarang,
+                                'Zon': zon_audit,
+                                'Lokasi': lokasi_khusus,
+                                'Juruaudit': nama_juruaudit,
+                                'Komponen': komponen_pilihan,
+                                'Subtopik': item_info['Subtopik'],
+                                'No_Item': no_i,
+                                'Markah': d_item['Markah'],
+                                'Ulasan': d_item['Ulasan']
+                            })
+                        
+                        df_baru = pd.DataFrame(baris_baru)
+                        try:
+                            df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                            df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
+                        except Exception:
+                            df_gabung = df_baru
+                            
+                        conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
+                        st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
+                    except Exception as err:
+                        st.warning(f"Data disimpan secara tempatan sahaja. Gagal berhubung ke Google Sheets: {err}")
+                else:
+                    st.success(f"Rekod disimpan ke memori sementara. Sambungkan URL Google Sheets untuk simpanan kekal.")
     else:
         st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
 
@@ -265,7 +357,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 # PAPARAN 2: MARKAH AUDIT
 # ==========================================
 elif menu_paparan == "📊 Markah Audit":
-    if os.path.exists(fail_logo):
+    if fail_logo:
         st.image(fail_logo, width=150)
         
     st.title("📊 Papan Markah Audit EKSA")
@@ -450,7 +542,7 @@ elif menu_paparan == "📊 Markah Audit":
 # PAPARAN 3: LAPORAN PENUH & CETAKAN
 # ==========================================
 elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
-    if os.path.exists(fail_logo):
+    if fail_logo:
         st.image(fail_logo, width=150)
         
     st.title("🖨️ Pusat Pelaporan & Cetakan")
@@ -486,13 +578,12 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         total_p = len(data_eksa.get(komp_nama, [])) * 5
         return total_m, total_p
 
-    # JANA KANDUNGAN HTML LAPORAN UNTUK CETAKAN ISOLASI
     html_kandungan = ""
 
     if pilihan_jenis_cetakan == "1. Markah Audit (Format Ringkas)":
         html_kandungan = f"""
-        <div style="text-align: center; margin-bottom: 20px;">
-            <h3 style="margin: 0; font-family: Arial, sans-serif;">MARKAH AUDIT DALAM EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
+        <div style="text-align: center; margin-bottom: 20px; background-color: #ffffff; color: #000000;">
+            <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000;">MARKAH AUDIT DALAM EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
         </div>
         <table class="jadual-laporan">
             <thead>
@@ -551,10 +642,10 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
 
     elif pilihan_jenis_cetakan == "2. Laporan Penilaian Audit (Format Penuh)":
         html_kandungan = f"""
-        <div style="text-align: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; font-family: Arial, sans-serif;">LAPORAN PENILAIAN AUDIT EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
+        <div style="text-align: center; margin-bottom: 10px; background-color: #ffffff; color: #000000;">
+            <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000;">LAPORAN PENILAIAN AUDIT EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
         </div>
-        <p style="font-family: Arial, sans-serif;"><b>TARIKH AUDIT:</b> {tarikh_audit_cetak.strftime('%d %B %Y').upper()}</p>
+        <p style="font-family: Arial, sans-serif; color: #000000;"><b>TARIKH AUDIT:</b> {tarikh_audit_cetak.strftime('%d %B %Y').upper()}</p>
         <table class="jadual-laporan">
             <thead>
                 <tr>
@@ -625,7 +716,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             </tbody>
         </table>
         <br><br>
-        <div style="display: flex; justify-content: space-between; font-family: Arial, sans-serif;">
+        <div style="display: flex; justify-content: space-between; font-family: Arial, sans-serif; color: #000000; background-color: #ffffff;">
             <div>
                 <b>PENGESAHAN KETUA JURUAUDIT</b><br><br><br>
                 TANDATANGAN: ___________________________<br>
@@ -641,7 +732,6 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         </div>
         """
 
-    # BUTANG JAVASCRIPT ISOLASI
     components.html(
         f"""
         <script>
@@ -650,13 +740,14 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             var mywindow = window.open('', 'PRINT', 'height=800,width=1000');
             mywindow.document.write('<html><head><title>Laporan Audit EKSA</title>');
             mywindow.document.write('<style>');
-            mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; text-align: center; margin-top: 10px; }}');
-            mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000; padding: 6px 8px; }}');
-            mywindow.document.write('.header-effektif {{ background-color: #fef3c7; }}');
-            mywindow.document.write('.header-komited {{ background-color: #bfdbfe; }}');
-            mywindow.document.write('.header-sepakat {{ background-color: #fca5a5; }}');
-            mywindow.document.write('.header-aktif {{ background-color: #bbf7d0; }}');
-            mywindow.document.write('.header-kelabu {{ background-color: #e5e7eb; }}');
+            mywindow.document.write('body {{ background-color: #ffffff !important; color: #000000 !important; font-family: Arial, sans-serif; padding: 20px; }}');
+            mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; text-align: center; margin-top: 10px; background-color: #ffffff !important; color: #000000 !important; }}');
+            mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000000 !important; padding: 6px 8px; color: #000000 !important; background-color: #ffffff; }}');
+            mywindow.document.write('.header-effektif {{ background-color: #fef3c7 !important; color: #000000 !important; }}');
+            mywindow.document.write('.header-komited {{ background-color: #bfdbfe !important; color: #000000 !important; }}');
+            mywindow.document.write('.header-sepakat {{ background-color: #fca5a5 !important; color: #000000 !important; }}');
+            mywindow.document.write('.header-aktif {{ background-color: #bbf7d0 !important; color: #000000 !important; }}');
+            mywindow.document.write('.header-kelabu {{ background-color: #e5e7eb !important; color: #000000 !important; }}');
             mywindow.document.write('</style></head><body>');
             mywindow.document.write(kandungan);
             mywindow.document.write('</body></html>');
@@ -688,6 +779,4 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     )
 
     st.markdown("---")
-    
-    # PRATONTON DI DALAM SKRIN SISTEM
-    st.markdown(html_kandungan, unsafe_allow_html=True)
+    st.markdown(f"<div class='jadual-laporan-wrapper'>{html_kandungan}</div>", unsafe_allow_html=True)
