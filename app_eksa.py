@@ -12,7 +12,7 @@ from streamlit_gsheets import GSheetsConnection
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
 
 # PAUTAN GOOGLE SHEETS ANDA (Gantikan URL di bawah dengan URL Google Sheets anda)
-URL_GSHEETS = "https://docs.google.com/spreadsheets/d/https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing/edit#gid=0"
+URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
 
 # Sambungan ke Google Sheets
 try:
