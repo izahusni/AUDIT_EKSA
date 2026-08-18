@@ -212,7 +212,7 @@ for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jp
 if fail_logo:
     st.sidebar.image(fail_logo, use_container_width=True)
 
-st.sidebar.title("📝 Sistem Audit EKSA")
+st.sidebar.title("Sistem Audit EKSA")
 st.sidebar.markdown("---")
 st.sidebar.header("Navigasi Sistem")
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
@@ -229,7 +229,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
     if fail_logo:
         st.image(fail_logo, width=150)
         
-    st.title("📋 Borang Penilaian EKSA")
+    st.title("Borang Penilaian EKSA")
     st.write("Sila lengkapkan maklumat audit dan pilih komponen yang ingin dinilai.")
     
     col_info1, col_info2, col_info3, col_info4 = st.columns([1, 1, 1.2, 1])
@@ -318,7 +318,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
                 # SIMPAN DATA KE GOOGLE SHEETS
-                if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing:
                     try:
                         baris_baru = []
                         tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
