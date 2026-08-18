@@ -318,7 +318,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
                 # SIMPAN DATA KE GOOGLE SHEETS
-                if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
+                if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS
                     try:
                         baris_baru = []
                         tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
