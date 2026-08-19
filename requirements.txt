@@ -1,6 +1,6 @@
 streamlit
 pandas
-pillow
+Pillow
 plotly
 streamlit-gsheets
 google-api-python-client
