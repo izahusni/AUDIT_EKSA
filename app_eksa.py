@@ -354,7 +354,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
 
 # ==========================================
-# PAPARAN 2: MARKAH AUDIT
+# PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
 # ==========================================
 elif menu_paparan == "📊 Markah Audit":
     if fail_logo:
@@ -438,6 +438,104 @@ elif menu_paparan == "📊 Markah Audit":
 
         senarai_komp_laporan = list(data_eksa.keys()) if pilih_komponen == "Semua Komponen" else [pilih_komponen]
 
+        # ==========================================
+        # SENARAI REKOD AUDIT (DENGAN EDIT & DELETE)
+        # ==========================================
+        st.subheader("📝 Pengurusan & Suntingan Rekod Audit")
+        
+        ada_rekod = False
+        for zon in zon_sasaran:
+            dict_zon_terpilih = st.session_state.pangkalan_data[zon]
+            senarai_auditor_laporan = list(dict_zon_terpilih.keys()) if pilih_auditor == "Semua Juruaudit" else ([pilih_auditor] if pilih_auditor in dict_zon_terpilih else [])
+            
+            for nm_auditor in senarai_auditor_laporan:
+                rekod_auditor = dict_zon_terpilih[nm_auditor]
+                lok_khusus = rekod_auditor.get('_lokasi_khusus', 'Biasa')
+                
+                for komp in senarai_komp_laporan:
+                    rekod_komp = rekod_auditor.get(komp, {})
+                    
+                    for no_item, data in list(rekod_komp.items()):
+                        if isinstance(data, dict):
+                            ada_rekod = True
+                            item_asal = [orig for orig in data_eksa[komp] if orig['No'] == no_item][0]
+                            
+                            with st.expander(f"📌 [{zon} - {lok_khusus}] {komp} - Item {no_item}: {item_asal['Perkara']} (Markah: {data['Markah']}/5)"):
+                                c_info, c_edit, c_del = st.columns([3, 1, 1])
+                                
+                                with c_info:
+                                    st.write(f"**Juruaudit:** {nm_auditor}")
+                                    st.write(f"**Ulasan:** {data['Ulasan'] if data['Ulasan'] else '*Tiada*'}")
+                                    if data.get('Gambar'):
+                                        st.image(data['Gambar'], width=120, caption="Bukti Gambar")
+                                
+                                # --- BUTANG SUNTING (EDIT) ---
+                                with c_edit:
+                                    with st.popover("✏️ Edit"):
+                                        st.markdown(f"**Edit Item {no_item}**")
+                                        
+                                        markah_baru = st.radio(
+                                            "Markah Baharu", 
+                                            [1, 2, 3, 4, 5], 
+                                            index=[1, 2, 3, 4, 5].index(data['Markah']), 
+                                            horizontal=True,
+                                            key=f"edit_m_{zon}_{nm_auditor}_{komp}_{no_item}"
+                                        )
+                                        ulasan_baru = st.text_input(
+                                            "Ulasan Baharu", 
+                                            value=data['Ulasan'],
+                                            key=f"edit_u_{zon}_{nm_auditor}_{komp}_{no_item}"
+                                        )
+                                        gambar_baru = st.file_uploader(
+                                            "Tukar Gambar", 
+                                            type=['png', 'jpg', 'jpeg'],
+                                            key=f"edit_g_{zon}_{nm_auditor}_{komp}_{no_item}"
+                                        )
+                                        
+                                        if st.button("💾 Simpan Kemas Kini", key=f"btn_save_{zon}_{nm_auditor}_{komp}_{no_item}"):
+                                            # Update Session State
+                                            st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Markah'] = markah_baru
+                                            st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Ulasan'] = ulasan_baru
+                                            if gambar_baru is not None:
+                                                st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = gambar_baru
+                                            
+                                            # Re-sync dengan GSheets jika ada sambungan
+                                            if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                                try:
+                                                    df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                                    mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
+                                                    df_g.loc[mask, 'Markah'] = markah_baru
+                                                    df_g.loc[mask, 'Ulasan'] = ulasan_baru
+                                                    conn.update(spreadsheet=URL_GSHEETS, data=df_g)
+                                                except Exception:
+                                                    pass
+                                                    
+                                            st.success("✅ Rekod berjaya dikemas kini!")
+                                            st.rerun()
+
+                                # --- BUTANG PADAM (DELETE) ---
+                                with c_del:
+                                    if st.button("🗑️ Padam", key=f"del_{zon}_{nm_auditor}_{komp}_{no_item}", type="primary"):
+                                        # Padam dari Session State
+                                        del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
+                                        
+                                        # Padam dari GSheets jika bersambung
+                                        if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                            try:
+                                                df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                                df_filtered = df_g[~((df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item)))]
+                                                conn.update(spreadsheet=URL_GSHEETS, data=df_filtered)
+                                            except Exception:
+                                                pass
+                                                
+                                        st.warning("🗑️ Rekod telah dipadam.")
+                                        st.rerun()
+
+        if not ada_rekod:
+            st.info("Tiada rekod penilaian dijumpai bagi tapisan yang dipilih.")
+
+        st.markdown("---")
+
         st.subheader("🌟 Pencapaian Cemerlang (Markah 5)")
         ada_cemerlang = False
         
@@ -458,7 +556,7 @@ elif menu_paparan == "📊 Markah Audit":
                             subtopik_item = item_asal['Subtopik']
                             perkara_item = item_asal['Perkara']
                             
-                            st.success(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}**  \n{perkara_item}  \n*(Oleh: {nm_auditor}) | Ulasan: {data['Ulasan'] if data['Ulasan'] else 'Memuaskan'}*")
+                            st.success(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} \n*(Oleh: {nm_auditor}) | Ulasan: {data['Ulasan'] if data['Ulasan'] else 'Memuaskan'}*")
         
         if not ada_cemerlang:
             st.info("Tiada rekod item cemerlang (Markah 5) dijumpai untuk kriteria yang dipilih.")
@@ -485,14 +583,14 @@ elif menu_paparan == "📊 Markah Audit":
                             subtopik_item = item_asal['Subtopik']
                             perkara_item = item_asal['Perkara']
                             
-                            st.error(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}**  \n{perkara_item} *(Dinilai oleh: {nm_auditor})*")
+                            st.error(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} *(Dinilai oleh: {nm_auditor})*")
                             col_sebelum, col_selepas = st.columns(2)
                             
                             with col_sebelum:
                                 st.markdown("#### 🔴 Penemuan Asal")
                                 st.write(f"**Skor Diberikan:** {data['Markah']} / 5")
                                 st.write(f"**Komen Juruaudit:** {data['Ulasan'] if data['Ulasan'] else '*Tiada ulasan ditinggalkan.*'}")
-                                if data['Gambar'] is not None:
+                                if data.get('Gambar') is not None:
                                     try:
                                         img = Image.open(data['Gambar'])
                                         st.image(img, caption="Bukti Semasa Audit", use_container_width=True)
@@ -536,7 +634,6 @@ elif menu_paparan == "📊 Markah Audit":
 
         if not ada_kelemahan:
             st.success("Tahniah! Tiada item dengan markah rendah (1 atau 2) yang memerlukan tindakan susulan bagi tetapan yang dipilih.")
-
 
 # ==========================================
 # PAPARAN 3: LAPORAN PENUH & CETAKAN
