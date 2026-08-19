@@ -1,6 +1,9 @@
 streamlit
 pandas
-openpyxl
-Pillow
+pillow
 plotly
-st-gsheets-connection
+streamlit-gsheets
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+openpyxl
