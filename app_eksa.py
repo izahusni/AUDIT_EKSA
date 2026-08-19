@@ -5,6 +5,7 @@ import datetime
 import plotly.express as px
 import re
 import os
+import io
 import base64
 import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
@@ -25,15 +26,24 @@ try:
 except Exception as e:
     conn = None
 
-# Fungsi Penukaran Gambar ke Base64
-def gambar_ke_base64(file_obj):
+# Fungsi Penukaran Gambar ke Base64 dengan Pemampatan (Mengelak Ralat >50,000 aksara)
+def gambar_ke_base64(file_obj, max_size=(300, 300), quality=50):
     if file_obj is None:
         return None
     try:
-        bytes_data = file_obj.getvalue()
-        b64_str = base64.b64encode(bytes_data).decode()
-        return f"data:{file_obj.type};base64,{b64_str}"
-    except Exception:
+        img = Image.open(file_obj)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        img.thumbnail(max_size)
+        
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality)
+        
+        b64_str = base64.b64encode(buffer.getvalue()).decode()
+        return f"data:image/jpeg;base64,{b64_str}"
+    except Exception as e:
+        st.error(f"Gagal memampatkan gambar: {e}")
         return None
 
 # Fungsi Membaca Data Sedia Ada Dari Google Sheets
@@ -364,7 +374,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                             df_gabung = df_baru
                             
                         conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
-                        st.success("✅ Data dan gambar berjaya disimpan ke Google Sheets!")
+                        st.success("✅ Data dan gambar berjaya disimpan secara KEKAL ke Google Sheets!")
                     except Exception as err:
                         st.error(f"Gagal berhubung ke Google Sheets: {err}")
                 else:
