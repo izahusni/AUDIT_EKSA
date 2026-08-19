@@ -11,14 +11,50 @@ from streamlit_gsheets import GSheetsConnection
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
 
-# PAUTAN GOOGLE SHEETS ANDA (Gantikan URL di bawah dengan URL Google Sheets anda)
-URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
+# --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
+if 'pangkalan_data' not in st.session_state:
+    st.session_state.pangkalan_data = {}
 
-# Sambungan ke Google Sheets
+# Panggilan Sambungan GSheets melalui Secrets
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
     conn = None
+
+# Fungsi Membaca Data Sedia Ada Dari Google Sheets
+def senkron_data_dari_gsheets():
+    if conn is not None:
+        try:
+            df_existing = conn.read(ttl=0) # Membaca terus menggunakan tetapan secrets.toml
+            if not df_existing.empty:
+                for _, row in df_existing.iterrows():
+                    z = str(row['Zon'])
+                    j = str(row['Juruaudit'])
+                    k = str(row['Komponen'])
+                    no_i = str(row['No_Item'])
+                    
+                    if z not in st.session_state.pangkalan_data:
+                        st.session_state.pangkalan_data[z] = {}
+                    if j not in st.session_state.pangkalan_data[z]:
+                        st.session_state.pangkalan_data[z][j] = {}
+                        
+                    st.session_state.pangkalan_data[z][j]['_lokasi_khusus'] = str(row['Lokasi'])
+                    
+                    if k not in st.session_state.pangkalan_data[z][j]:
+                        st.session_state.pangkalan_data[z][j][k] = {}
+                        
+                    st.session_state.pangkalan_data[z][j][k][no_i] = {
+                        'Markah': int(row['Markah']),
+                        'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
+                        'Gambar': None,
+                        'Ulasan_Susulan': '',
+                        'Gambar_Susulan': None,
+                        'Tarikh_Susulan': datetime.date.today()
+                    }
+        except Exception:
+            pass
+
+senkron_data_dari_gsheets()
 
 # --- CSS KHAS ---
 st.markdown("""
@@ -73,45 +109,6 @@ st.markdown("""
     .header-kelabu { background-color: #e5e7eb !important; color: #000000 !important; }
     </style>
 """, unsafe_allow_html=True)
-
-# --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
-if 'pangkalan_data' not in st.session_state:
-    st.session_state.pangkalan_data = {}
-
-# --- FUNGSI MUAT DATA DARI GOOGLE SHEETS ---
-def senkron_data_dari_gsheets():
-    if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
-        try:
-            df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-            if not df_existing.empty:
-                for _, row in df_existing.iterrows():
-                    z = str(row['Zon'])
-                    j = str(row['Juruaudit'])
-                    k = str(row['Komponen'])
-                    no_i = str(row['No_Item'])
-                    
-                    if z not in st.session_state.pangkalan_data:
-                        st.session_state.pangkalan_data[z] = {}
-                    if j not in st.session_state.pangkalan_data[z]:
-                        st.session_state.pangkalan_data[z][j] = {}
-                        
-                    st.session_state.pangkalan_data[z][j]['_lokasi_khusus'] = str(row['Lokasi'])
-                    
-                    if k not in st.session_state.pangkalan_data[z][j]:
-                        st.session_state.pangkalan_data[z][j][k] = {}
-                        
-                    st.session_state.pangkalan_data[z][j][k][no_i] = {
-                        'Markah': int(row['Markah']),
-                        'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
-                        'Gambar': None,
-                        'Ulasan_Susulan': '',
-                        'Gambar_Susulan': None,
-                        'Tarikh_Susulan': datetime.date.today()
-                    }
-        except Exception:
-            pass
-
-senkron_data_dari_gsheets()
 
 # --- 3. FUNGSI BACAAN EXCEL ---
 @st.cache_data
@@ -314,87 +311,47 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 st.markdown("---")
                 
             hantar = st.form_submit_button("Simpan Markah & Gambar")
+            
+            # --- STEP 4: PROSES SIMPAN KE GOOGLE SHEETS ---
             if hantar:
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
-               # --- PANGGILAN SAMBUNGAN ---
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
-    conn = None
-
-# --- FUNGSI MUAT DATA DARI GOOGLE SHEETS ---
-def senkron_data_dari_gsheets():
-    if conn is not None:
-        try:
-            df_existing = conn.read(ttl=0) # Membaca terus dari secrets
-            if not df_existing.empty:
-                for _, row in df_existing.iterrows():
-                    z = str(row['Zon'])
-                    j = str(row['Juruaudit'])
-                    k = str(row['Komponen'])
-                    no_i = str(row['No_Item'])
-                    
-                    if z not in st.session_state.pangkalan_data:
-                        st.session_state.pangkalan_data[z] = {}
-                    if j not in st.session_state.pangkalan_data[z]:
-                        st.session_state.pangkalan_data[z][j] = {}
+                if conn is not None:
+                    try:
+                        baris_baru = []
+                        tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
                         
-                    st.session_state.pangkalan_data[z][j]['_lokasi_khusus'] = str(row['Lokasi'])
-                    
-                    if k not in st.session_state.pangkalan_data[z][j]:
-                        st.session_state.pangkalan_data[z][j][k] = {}
+                        for no_i, d_item in data_semasa[komponen_pilihan].items():
+                            item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
+                            baris_baru.append({
+                                'Tarikh': tarikh_sekarang,
+                                'Zon': zon_audit,
+                                'Lokasi': lokasi_khusus,
+                                'Juruaudit': nama_juruaudit,
+                                'Komponen': komponen_pilihan,
+                                'Subtopik': item_info['Subtopik'],
+                                'No_Item': no_i,
+                                'Markah': d_item['Markah'],
+                                'Ulasan': d_item['Ulasan']
+                            })
                         
-                    st.session_state.pangkalan_data[z][j][k][no_i] = {
-                        'Markah': int(row['Markah']),
-                        'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
-                        'Gambar': None,
-                        'Ulasan_Susulan': '',
-                        'Gambar_Susulan': None,
-                        'Tarikh_Susulan': datetime.date.today()
-                    }
-        except Exception as e:
-            pass
-
-senkron_data_dari_gsheets()
-
-# --- PROSES SIMPAN APABILA FORM DIHANTAR ---
-# Gantikan bahagian simpan dalam st.form_submit_button ("Simpan Markah & Gambar")
-if hantar:
-    st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
-    
-    if conn is not None:
-        try:
-            baris_baru = []
-            tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
-            for no_i, d_item in data_semasa[komponen_pilihan].items():
-                item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
-                baris_baru.append({
-                    'Tarikh': tarikh_sekarang,
-                    'Zon': zon_audit,
-                    'Lokasi': lokasi_khusus,
-                    'Juruaudit': nama_juruaudit,
-                    'Komponen': komponen_pilihan,
-                    'Subtopik': item_info['Subtopik'],
-                    'No_Item': no_i,
-                    'Markah': d_item['Markah'],
-                    'Ulasan': d_item['Ulasan']
-                })
-            
-            df_baru = pd.DataFrame(baris_baru)
-            try:
-                df_lama = conn.read(ttl=0)
-                df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
-            except Exception:
-                df_gabung = df_baru
-                
-            # Kemaskini semula ke Google Sheet
-            conn.update(data=df_gabung)
-            st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
-        except Exception as err:
-            st.error(f"Gagal berhubung ke Google Sheets: {err}")
+                        df_baru = pd.DataFrame(baris_baru)
+                        try:
+                            df_lama = conn.read(ttl=0)
+                            df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
+                        except Exception:
+                            df_gabung = df_baru
+                            
+                        # Kemaskini semula ke Google Sheets secara kekal
+                        conn.update(data=df_gabung)
+                        st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
+                    except Exception as err:
+                        st.error(f"Gagal berhubung ke Google Sheets: {err}")
+                else:
+                    st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
     else:
-        st.warning("Sambungan st.connection('gsheets') gagal dibuka. Semak Secrets anda.")
+        st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
+
 
 # ==========================================
 # PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
@@ -543,13 +500,13 @@ elif menu_paparan == "📊 Markah Audit":
                                                 st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = gambar_baru
                                             
                                             # Re-sync dengan GSheets jika ada sambungan
-                                            if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                            if conn is not None:
                                                 try:
-                                                    df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                                    df_g = conn.read(ttl=0)
                                                     mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
                                                     df_g.loc[mask, 'Markah'] = markah_baru
                                                     df_g.loc[mask, 'Ulasan'] = ulasan_baru
-                                                    conn.update(spreadsheet=URL_GSHEETS, data=df_g)
+                                                    conn.update(data=df_g)
                                                 except Exception:
                                                     pass
                                                     
@@ -563,11 +520,11 @@ elif menu_paparan == "📊 Markah Audit":
                                         del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
                                         
                                         # Padam dari GSheets jika bersambung
-                                        if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                        if conn is not None:
                                             try:
-                                                df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                                df_g = conn.read(ttl=0)
                                                 df_filtered = df_g[~((df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item)))]
-                                                conn.update(spreadsheet=URL_GSHEETS, data=df_filtered)
+                                                conn.update(data=df_filtered)
                                             except Exception:
                                                 pass
                                                 
