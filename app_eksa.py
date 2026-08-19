@@ -324,15 +324,18 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
                         
                         for no_i, d_item in data_semasa[komponen_pilihan].items():
-                            item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
+                            # Pemadanan selamat untuk mengelakkan ralat list index out of range
+                            padanan = [orig for orig in data_eksa.get(komponen_pilihan, []) if str(orig['No']).strip() == str(no_i).strip()]
+                            subtopik_val = padanan[0]['Subtopik'] if padanan else "KRITERIA UMUM"
+                            
                             baris_baru.append({
                                 'Tarikh': tarikh_sekarang,
                                 'Zon': zon_audit,
                                 'Lokasi': lokasi_khusus,
                                 'Juruaudit': nama_juruaudit,
                                 'Komponen': komponen_pilihan,
-                                'Subtopik': item_info['Subtopik'],
-                                'No_Item': no_i,
+                                'Subtopik': subtopik_val,
+                                'No_Item': str(no_i),
                                 'Markah': d_item['Markah'],
                                 'Ulasan': d_item['Ulasan']
                             })
@@ -459,9 +462,10 @@ elif menu_paparan == "📊 Markah Audit":
                     for no_item, data in list(rekod_komp.items()):
                         if isinstance(data, dict):
                             ada_rekod = True
-                            item_asal = [orig for orig in data_eksa[komp] if orig['No'] == no_item][0]
+                            padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
+                            perkara_txt = padanan_item[0]['Perkara'] if padanan_item else f"Item {no_item}"
                             
-                            with st.expander(f"📌 [{zon} - {lok_khusus}] {komp} - Item {no_item}: {item_asal['Perkara']} (Markah: {data['Markah']}/5)"):
+                            with st.expander(f"📌 [{zon} - {lok_khusus}] {komp} - Item {no_item}: {perkara_txt} (Markah: {data['Markah']}/5)"):
                                 c_info, c_edit, c_del = st.columns([3, 1, 1])
                                 
                                 with c_info:
@@ -553,9 +557,9 @@ elif menu_paparan == "📊 Markah Audit":
                     for no_item, data in rekod_komp.items():
                         if isinstance(data, dict) and data.get('Markah') == 5:
                             ada_cemerlang = True
-                            item_asal = [orig for orig in data_eksa[komp] if orig['No'] == no_item][0]
-                            subtopik_item = item_asal['Subtopik']
-                            perkara_item = item_asal['Perkara']
+                            padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
+                            subtopik_item = padanan_item[0]['Subtopik'] if padanan_item else "KRITERIA UMUM"
+                            perkara_item = padanan_item[0]['Perkara'] if padanan_item else f"Item {no_item}"
                             
                             st.success(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} \n*(Oleh: {nm_auditor}) | Ulasan: {data['Ulasan'] if data['Ulasan'] else 'Memuaskan'}*")
         
@@ -580,9 +584,9 @@ elif menu_paparan == "📊 Markah Audit":
                     for no_item, data in rekod_komp.items():
                         if isinstance(data, dict) and data.get('Markah', 5) <= 2:
                             ada_kelemahan = True
-                            item_asal = [orig for orig in data_eksa[komp] if orig['No'] == no_item][0]
-                            subtopik_item = item_asal['Subtopik']
-                            perkara_item = item_asal['Perkara']
+                            padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
+                            subtopik_item = padanan_item[0]['Subtopik'] if padanan_item else "KRITERIA UMUM"
+                            perkara_item = padanan_item[0]['Perkara'] if padanan_item else f"Item {no_item}"
                             
                             st.error(f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} *(Dinilai oleh: {nm_auditor})*")
                             col_sebelum, col_selepas = st.columns(2)
