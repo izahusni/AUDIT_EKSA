@@ -3,7 +3,7 @@ pandas
 openpyxl
 Pillow
 plotly
-streamlit-gsheets
+st-gsheets-connection
 google-api-python-client
 
 
