@@ -8,9 +8,6 @@ import os
 import io
 import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2.service_account import Credentials
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
@@ -23,26 +20,50 @@ DRIVE_FOLDER_ID = "1v5RplWFO9LLfefu_mutT8-eUonoEmpcd"
 if 'pangkalan_data' not in st.session_state:
     st.session_state.pangkalan_data = {}
 
-# Panggilan Sambungan GSheets
+# Panggilan Sambungan GSheets secara Selamat
+conn = None
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception:
-    conn = None
+except Exception as e:
+    st.sidebar.warning(f"Sambungan Google Sheets: {e}")
 
-# --- FUNGSI MUAT NAIK GAMBAR KE GOOGLE DRIVE ---
+# --- FUNGSI DENGAN PEMBERSIHAN PRIVATE KEY AUTOMATIK ---
+def dapatkan_creds_drive():
+    try:
+        from google.oauth2.service_account import Credentials
+        creds_dict = None
+        
+        # Cari lokasi kunci dalam secrets secara fleksibel
+        if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
+            creds_dict = dict(st.secrets["connections"]["gsheets"])
+        elif "gsheets" in st.secrets:
+            creds_dict = dict(st.secrets["gsheets"])
+            
+        if creds_dict:
+            # Betulkan format private_key (\n literal kepada newline sebenar)
+            if "private_key" in creds_dict:
+                pk = creds_dict["private_key"]
+                if "\\n" in pk:
+                    creds_dict["private_key"] = pk.replace("\\n", "\n")
+            
+            scopes = ['https://www.googleapis.com/auth/drive']
+            return Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    except Exception as err:
+        st.error(f"Ralat Kredensial Google Drive: {err}")
+    return None
+
 def muat_naik_gambar_ke_drive(file_uploader_obj, nama_fail):
     if file_uploader_obj is None:
         return ""
         
     try:
-        if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
-            creds_dict = st.secrets["connections"]["gsheets"]
-        else:
-            creds_dict = st.secrets["gsheets"]
-
-        scopes = ['https://www.googleapis.com/auth/drive']
-        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        from googleapiclient.discovery import build
+        from googleapiclient.http import MediaIoBaseUpload
         
+        creds = dapatkan_creds_drive()
+        if not creds:
+            return ""
+            
         drive_service = build('drive', 'v3', credentials=creds)
         
         file_metadata = {
@@ -67,7 +88,7 @@ def muat_naik_gambar_ke_drive(file_uploader_obj, nama_fail):
         return uploaded_file.get('webViewLink')
 
     except Exception as e:
-        st.error(f"Gagal memuat naik gambar ke Google Drive: {e}")
+        st.error(f"Gagal muat naik gambar ke Google Drive: {e}")
         return ""
 
 # Fungsi Membaca Data Sedia Ada Dari Google Sheets
@@ -159,18 +180,18 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 3. FUNGSI BACAAN EXCEL ---
+# --- 3. FUNGSI BACAAN EXCEL DENGAN PENANGANAN ERROR ---
 def muat_data_eksa(file_path):
     if not os.path.exists(file_path):
         return {}
     try:
-        xls = pd.ExcelFile(file_path)
+        xls = pd.ExcelFile(file_path, engine='openpyxl')
         data_komponen = {}
         
         valid_sheets = [s for s in xls.sheet_names if str(s).upper().startswith('KOMPONEN')]
         
         for sheet in valid_sheets:
-            df = pd.read_excel(file_path, sheet_name=sheet)
+            df = pd.read_excel(file_path, sheet_name=sheet, engine='openpyxl')
             item_list = []
             current_subtopic = "KRITERIA UMUM"
             
@@ -218,14 +239,15 @@ def muat_data_eksa(file_path):
                 data_komponen[sheet] = item_list
                 
         return data_komponen
-    except Exception:
+    except Exception as e:
+        st.error(f"Ralat Pembacaan Fail Excel: {e}")
         return {}
 
 fail_excel = '8. MARKAH AUDIT EKSA.xlsx'
 data_eksa = muat_data_eksa(fail_excel)
 
 if not data_eksa:
-    st.error(f"Sistem tidak dapat membaca fail '{fail_excel}'. Pastikan nama fail tepat di GitHub.")
+    st.error(f"Sistem tidak dapat membaca fail '{fail_excel}'. Sila pastikan fail wujud dan tidak rosak.")
     st.stop()
 
 def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
@@ -503,7 +525,7 @@ elif menu_paparan == "📊 Markah Audit":
         senarai_komp_laporan = list(data_eksa.keys()) if pilih_komponen == "Semua Komponen" else [pilih_komponen]
 
         # ==========================================
-        # SENARAI REKOD AUDIT (DENGAN EDIT & DELETE)
+        # SENARAI REKOD AUDIT
         # ==========================================
         st.subheader("📝 Pengurusan & Suntingan Rekod Audit")
         
