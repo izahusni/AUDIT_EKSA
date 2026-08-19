@@ -11,11 +11,14 @@ from streamlit_gsheets import GSheetsConnection
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
 
+# PAUTAN GOOGLE SHEETS ANDA
+URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
+
 # --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
 if 'pangkalan_data' not in st.session_state:
     st.session_state.pangkalan_data = {}
 
-# Panggilan Sambungan GSheets melalui Secrets
+# Panggilan Sambungan GSheets
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
@@ -25,8 +28,7 @@ except Exception as e:
 def senkron_data_dari_gsheets():
     if conn is not None:
         try:
-            # Masukkan parameter spreadsheet di sini
-            df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0) 
+            df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
             if not df_existing.empty:
                 for _, row in df_existing.iterrows():
                     z = str(row['Zon'])
@@ -313,7 +315,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 
             hantar = st.form_submit_button("Simpan Markah & Gambar")
             
-            # --- STEP 4: PROSES SIMPAN KE GOOGLE SHEETS ---
             if hantar:
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
@@ -338,19 +339,19 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         
                         df_baru = pd.DataFrame(baris_baru)
                         try:
-                            # Masukkan parameter spreadsheet di sini
                             df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                             df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
                         except Exception:
                             df_gabung = df_baru
                             
-                        # Masukkan parameter spreadsheet di sini
                         conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
                         st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
                     except Exception as err:
                         st.error(f"Gagal berhubung ke Google Sheets: {err}")
                 else:
                     st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
+    else:
+        st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
 
 
 # ==========================================
@@ -499,14 +500,14 @@ elif menu_paparan == "📊 Markah Audit":
                                             if gambar_baru is not None:
                                                 st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = gambar_baru
                                             
-                                            # Re-sync dengan GSheets jika ada sambungan
+                                            # Re-sync dengan GSheets
                                             if conn is not None:
                                                 try:
-                                                    df_g = conn.read(ttl=0)
+                                                    df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                                                     mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
                                                     df_g.loc[mask, 'Markah'] = markah_baru
                                                     df_g.loc[mask, 'Ulasan'] = ulasan_baru
-                                                    conn.update(data=df_g)
+                                                    conn.update(spreadsheet=URL_GSHEETS, data=df_g)
                                                 except Exception:
                                                     pass
                                                     
@@ -519,12 +520,12 @@ elif menu_paparan == "📊 Markah Audit":
                                         # Padam dari Session State
                                         del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
                                         
-                                        # Padam dari GSheets jika bersambung
+                                        # Padam dari GSheets
                                         if conn is not None:
                                             try:
-                                                df_g = conn.read(ttl=0)
+                                                df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                                                 df_filtered = df_g[~((df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item)))]
-                                                conn.update(data=df_filtered)
+                                                conn.update(spreadsheet=URL_GSHEETS, data=df_filtered)
                                             except Exception:
                                                 pass
                                                 
