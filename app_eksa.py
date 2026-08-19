@@ -5,14 +5,19 @@ import datetime
 import plotly.express as px
 import re
 import os
+import io
 import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
+from google.oauth2.service_account import Credentials
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
 
-# PAUTAN GOOGLE SHEETS ANDA
+# PAUTAN GOOGLE SHEETS & ID FOLDER GOOGLE DRIVE
 URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
+DRIVE_FOLDER_ID = "1v5RplWFO9LLfefu_mutT8-eUonoEmpcd"
 
 # --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
 if 'pangkalan_data' not in st.session_state:
@@ -23,6 +28,45 @@ try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 except Exception as e:
     conn = None
+
+# --- FUNGSI MUAT NAIK GAMBAR KE GOOGLE DRIVE ---
+def muat_naik_gambar_ke_drive(file_uploader_obj, nama_fail):
+    if file_uploader_obj is None:
+        return ""
+        
+    try:
+        # Ambil maklumat Service Account dari Secrets Streamlit
+        creds_dict = st.secrets["connections"]["gsheets"]
+        scopes = ['https://www.googleapis.com/auth/drive']
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+        
+        drive_service = build('drive', 'v3', credentials=creds)
+        
+        file_metadata = {
+            'name': nama_fail,
+            'parents': [DRIVE_FOLDER_ID]
+        }
+        
+        fh = io.BytesIO(file_uploader_obj.getvalue())
+        media = MediaIoBaseUpload(fh, mimetype=file_uploader_obj.type, resumable=True)
+        
+        uploaded_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink'
+        ).execute()
+        
+        # Set Kebenaran Akses Awam (Public Reader)
+        drive_service.permissions().create(
+            fileId=uploaded_file.get('id'),
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+        
+        return uploaded_file.get('webViewLink')
+
+    except Exception as e:
+        st.error(f"Gagal memuat naik gambar ke Google Drive: {e}")
+        return ""
 
 # Fungsi Membaca Data Sedia Ada Dari Google Sheets
 def senkron_data_dari_gsheets():
@@ -49,9 +93,9 @@ def senkron_data_dari_gsheets():
                     st.session_state.pangkalan_data[z][j][k][no_i] = {
                         'Markah': int(row['Markah']),
                         'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
-                        'Gambar': None,
-                        'Ulasan_Susulan': '',
-                        'Gambar_Susulan': None,
+                        'Gambar': str(row['Gambar_URL']) if ('Gambar_URL' in row and pd.notna(row['Gambar_URL'])) else None,
+                        'Ulasan_Susulan': str(row['Ulasan_Susulan']) if ('Ulasan_Susulan' in row and pd.notna(row['Ulasan_Susulan'])) else '',
+                        'Gambar_Susulan': str(row['Gambar_Susulan_URL']) if ('Gambar_Susulan_URL' in row and pd.notna(row['Gambar_Susulan_URL'])) else None,
                         'Tarikh_Susulan': datetime.date.today()
                     }
         except Exception:
@@ -300,7 +344,9 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     gambar_disimpan = rekod_lama['Gambar']
                     if gambar_muat_naik is not None:
                         gambar_disimpan = gambar_muat_naik 
-                    if gambar_disimpan is not None:
+                    if gambar_disimpan is not None and isinstance(gambar_disimpan, str):
+                        st.markdown(f"[🔗 Lihat Gambar Drive]({gambar_disimpan})")
+                    elif gambar_disimpan is not None:
                         st.image(gambar_disimpan, width=100, caption="Gambar dimuat naik")
                 
                 data_semasa[komponen_pilihan][item['No']] = {
@@ -323,31 +369,43 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         baris_baru = []
                         tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
                         
-                        for no_i, d_item in data_semasa[komponen_pilihan].items():
-                            item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
-                            baris_baru.append({
-                                'Tarikh': tarikh_sekarang,
-                                'Zon': zon_audit,
-                                'Lokasi': lokasi_khusus,
-                                'Juruaudit': nama_juruaudit,
-                                'Komponen': komponen_pilihan,
-                                'Subtopik': item_info['Subtopik'],
-                                'No_Item': no_i,
-                                'Markah': d_item['Markah'],
-                                'Ulasan': d_item['Ulasan']
-                            })
-                        
-                        df_baru = pd.DataFrame(baris_baru)
-                        try:
-                            df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-                            df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
-                        except Exception:
-                            df_gabung = df_baru
+                        with st.spinner("Sedang memuat naik gambar ke Drive & menyimpan data ke Sheets..."):
+                            for no_i, d_item in data_semasa[komponen_pilihan].items():
+                                item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
+                                
+                                # Muat Naik Ke Drive jika ada fail baru
+                                pautan_gambar = d_item['Gambar'] if isinstance(d_item['Gambar'], str) else ""
+                                if d_item.get('Gambar') is not None and not isinstance(d_item['Gambar'], str):
+                                    nama_fail = f"SEBELUM_{zon_audit}_{komponen_pilihan}_Item{no_i}_{tarikh_sekarang}.png"
+                                    pautan_gambar = muat_naik_gambar_ke_drive(d_item['Gambar'], nama_fail)
+                                    st.session_state.pangkalan_data[zon_audit][nama_juruaudit][komponen_pilihan][no_i]['Gambar'] = pautan_gambar
+                                
+                                baris_baru.append({
+                                    'Tarikh': tarikh_sekarang,
+                                    'Zon': zon_audit,
+                                    'Lokasi': lokasi_khusus,
+                                    'Juruaudit': nama_juruaudit,
+                                    'Komponen': komponen_pilihan,
+                                    'Subtopik': item_info['Subtopik'],
+                                    'No_Item': no_i,
+                                    'Markah': d_item['Markah'],
+                                    'Ulasan': d_item['Ulasan'],
+                                    'Gambar_URL': pautan_gambar,
+                                    'Ulasan_Susulan': d_item['Ulasan_Susulan'],
+                                    'Gambar_Susulan_URL': d_item['Gambar_Susulan'] if isinstance(d_item['Gambar_Susulan'], str) else ""
+                                })
                             
-                        conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
-                        st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
+                            df_baru = pd.DataFrame(baris_baru)
+                            try:
+                                df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
+                            except Exception:
+                                df_gabung = df_baru
+                                
+                            conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
+                            st.success("✅ Data & Pautan Gambar Google Drive berjaya disimpan secara KEKAL!")
                     except Exception as err:
-                        st.error(f"Gagal berhubung ke Google Sheets: {err}")
+                        st.error(f"Gagal berhubung ke Google Sheets/Drive: {err}")
                 else:
                     st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
     else:
@@ -468,7 +526,10 @@ elif menu_paparan == "📊 Markah Audit":
                                     st.write(f"**Juruaudit:** {nm_auditor}")
                                     st.write(f"**Ulasan:** {data['Ulasan'] if data['Ulasan'] else '*Tiada*'}")
                                     if data.get('Gambar'):
-                                        st.image(data['Gambar'], width=120, caption="Bukti Gambar")
+                                        if isinstance(data['Gambar'], str):
+                                            st.markdown(f"[🔗 Lihat Bukti Gambar (Google Drive)]({data['Gambar']})")
+                                        else:
+                                            st.image(data['Gambar'], width=120, caption="Bukti Gambar")
                                 
                                 # --- BUTANG SUNTING (EDIT) ---
                                 with c_edit:
@@ -494,19 +555,24 @@ elif menu_paparan == "📊 Markah Audit":
                                         )
                                         
                                         if st.button("💾 Simpan Kemas Kini", key=f"btn_save_{zon}_{nm_auditor}_{komp}_{no_item}"):
-                                            # Update Session State
+                                            pautan_gambar_edit = data['Gambar']
+                                            if gambar_baru is not None:
+                                                tarikh_kini = datetime.date.today().strftime('%Y-%m-%d')
+                                                nama_f = f"EDIT_SEBELUM_{zon}_{komp}_Item{no_item}_{tarikh_kini}.png"
+                                                pautan_gambar_edit = muat_naik_gambar_ke_drive(gambar_baru, nama_f)
+                                                
                                             st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Markah'] = markah_baru
                                             st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Ulasan'] = ulasan_baru
-                                            if gambar_baru is not None:
-                                                st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = gambar_baru
+                                            st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = pautan_gambar_edit
                                             
-                                            # Re-sync dengan GSheets
                                             if conn is not None:
                                                 try:
                                                     df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                                                     mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
                                                     df_g.loc[mask, 'Markah'] = markah_baru
                                                     df_g.loc[mask, 'Ulasan'] = ulasan_baru
+                                                    if 'Gambar_URL' in df_g.columns:
+                                                        df_g.loc[mask, 'Gambar_URL'] = pautan_gambar_edit
                                                     conn.update(spreadsheet=URL_GSHEETS, data=df_g)
                                                 except Exception:
                                                     pass
@@ -517,10 +583,8 @@ elif menu_paparan == "📊 Markah Audit":
                                 # --- BUTANG PADAM (DELETE) ---
                                 with c_del:
                                     if st.button("🗑️ Padam", key=f"del_{zon}_{nm_auditor}_{komp}_{no_item}", type="primary"):
-                                        # Padam dari Session State
                                         del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
                                         
-                                        # Padam dari GSheets
                                         if conn is not None:
                                             try:
                                                 df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
@@ -592,11 +656,14 @@ elif menu_paparan == "📊 Markah Audit":
                                 st.write(f"**Skor Diberikan:** {data['Markah']} / 5")
                                 st.write(f"**Komen Juruaudit:** {data['Ulasan'] if data['Ulasan'] else '*Tiada ulasan ditinggalkan.*'}")
                                 if data.get('Gambar') is not None:
-                                    try:
-                                        img = Image.open(data['Gambar'])
-                                        st.image(img, caption="Bukti Semasa Audit", use_container_width=True)
-                                    except:
-                                        st.warning("Format gambar tidak disokong.")
+                                    if isinstance(data['Gambar'], str):
+                                        st.markdown(f"[🔗 Lihat Bukti Semasa Audit (Google Drive)]({data['Gambar']})")
+                                    else:
+                                        try:
+                                            img = Image.open(data['Gambar'])
+                                            st.image(img, caption="Bukti Semasa Audit", use_container_width=True)
+                                        except:
+                                            st.warning("Format gambar tidak disokong.")
                                 else:
                                     st.info("Tiada bukti gambar asal.")
                             
@@ -608,29 +675,47 @@ elif menu_paparan == "📊 Markah Audit":
                                     gambar_baru_muat_naik = st.file_uploader("Muat Naik Gambar (Selepas)", type=['png', 'jpg', 'jpeg'], key=f"gambar_susulan_m_{zon}_{nm_auditor}_{komp}_{no_item}")
                                     simpan_susulan = st.form_submit_button("Simpan & Kemas Kini Susulan")
                                     
-                                    gambar_susulan_disimpan = data['Gambar_Susulan']
-                                    if gambar_baru_muat_naik is not None:
-                                        gambar_susulan_disimpan = gambar_baru_muat_naik
-                                        
                                     if simpan_susulan:
+                                        pautan_susulan = data['Gambar_Susulan'] if isinstance(data['Gambar_Susulan'], str) else ""
+                                        if gambar_baru_muat_naik is not None:
+                                            tarikh_kini = datetime.date.today().strftime('%Y-%m-%d')
+                                            nama_f_s = f"SELEPAS_{zon}_{komp}_Item{no_item}_{tarikh_kini}.png"
+                                            pautan_susulan = muat_naik_gambar_ke_drive(gambar_baru_muat_naik, nama_f_s)
+                                            
                                         st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Tarikh_Susulan'] = tarikh_baru
                                         st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Ulasan_Susulan'] = ulasan_baru
-                                        st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar_Susulan'] = gambar_susulan_disimpan
-                                        st.success("Tindakan susulan dikemas kini!")
+                                        st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar_Susulan'] = pautan_susulan
+                                        
+                                        if conn is not None:
+                                            try:
+                                                df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                                mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
+                                                if 'Ulasan_Susulan' in df_g.columns:
+                                                    df_g.loc[mask, 'Ulasan_Susulan'] = ulasan_baru
+                                                if 'Gambar_Susulan_URL' in df_g.columns:
+                                                    df_g.loc[mask, 'Gambar_Susulan_URL'] = pautan_susulan
+                                                conn.update(spreadsheet=URL_GSHEETS, data=df_g)
+                                            except Exception:
+                                                pass
+                                                
+                                        st.success("Tindakan susulan & Gambar Drive dikemas kini!")
                                         st.rerun()
 
                                 if data['Ulasan_Susulan']:
-                                    st.write(f"**Tarikh Selesai:** {data['Tarikh_Susulan'].strftime('%d/%m/%Y')}")
+                                    st.write(f"**Tarikh Selesai:** {data['Tarikh_Susulan'].strftime('%d/%m/%Y') if isinstance(data['Tarikh_Susulan'], datetime.date) else data['Tarikh_Susulan']}")
                                     st.write(f"**Tindakan Ambilan:** {data['Ulasan_Susulan']}")
                                 else:
                                     st.write("*(Belum ada tindakan direkodkan)*")
 
                                 if data['Gambar_Susulan'] is not None:
-                                    try:
-                                        img_susulan = Image.open(data['Gambar_Susulan'])
-                                        st.image(img_susulan, caption="Bukti Selepas Penambahbaikan", use_container_width=True)
-                                    except:
-                                        pass
+                                    if isinstance(data['Gambar_Susulan'], str) and data['Gambar_Susulan']:
+                                        st.markdown(f"[🔗 Lihat Bukti Penambahbaikan (Google Drive)]({data['Gambar_Susulan']})")
+                                    elif not isinstance(data['Gambar_Susulan'], str):
+                                        try:
+                                            img_susulan = Image.open(data['Gambar_Susulan'])
+                                            st.image(img_susulan, caption="Bukti Selepas Penambahbaikan", use_container_width=True)
+                                        except:
+                                            pass
                             st.markdown("---")
 
         if not ada_kelemahan:
