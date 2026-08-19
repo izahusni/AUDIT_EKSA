@@ -19,14 +19,14 @@ st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wid
 URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
 DRIVE_FOLDER_ID = "1v5RplWFO9LLfefu_mutT8-eUonoEmpcd"
 
-# --- 2. PENGURUSAN PANGKALAN DATA (SESSION & GOOGLE SHEETS) ---
+# --- 2. PENGURUSAN PANGKALAN DATA ---
 if 'pangkalan_data' not in st.session_state:
     st.session_state.pangkalan_data = {}
 
 # Panggilan Sambungan GSheets
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-except Exception as e:
+except Exception:
     conn = None
 
 # --- FUNGSI MUAT NAIK GAMBAR KE GOOGLE DRIVE ---
@@ -35,8 +35,11 @@ def muat_naik_gambar_ke_drive(file_uploader_obj, nama_fail):
         return ""
         
     try:
-        # Ambil maklumat Service Account dari Secrets Streamlit
-        creds_dict = st.secrets["connections"]["gsheets"]
+        if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
+            creds_dict = st.secrets["connections"]["gsheets"]
+        else:
+            creds_dict = st.secrets["gsheets"]
+
         scopes = ['https://www.googleapis.com/auth/drive']
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         
@@ -56,7 +59,6 @@ def muat_naik_gambar_ke_drive(file_uploader_obj, nama_fail):
             fields='id, webViewLink'
         ).execute()
         
-        # Set Kebenaran Akses Awam (Public Reader)
         drive_service.permissions().create(
             fileId=uploaded_file.get('id'),
             body={'type': 'anyone', 'role': 'reader'}
@@ -73,7 +75,7 @@ def senkron_data_dari_gsheets():
     if conn is not None:
         try:
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-            if not df_existing.empty:
+            if df_existing is not None and not df_existing.empty:
                 for _, row in df_existing.iterrows():
                     z = str(row['Zon'])
                     j = str(row['Juruaudit'])
@@ -158,68 +160,72 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 3. FUNGSI BACAAN EXCEL ---
-@st.cache_data
 def muat_data_eksa(file_path):
-    xls = pd.ExcelFile(file_path)
-    data_komponen = {}
-    
-    valid_sheets = [s for s in xls.sheet_names if str(s).upper().startswith('KOMPONEN')]
-    
-    for sheet in valid_sheets:
-        df = pd.read_excel(file_path, sheet_name=sheet)
-        item_list = []
-        current_subtopic = "KRITERIA UMUM"
+    if not os.path.exists(file_path):
+        return {}
+    try:
+        xls = pd.ExcelFile(file_path)
+        data_komponen = {}
         
-        for index, row in df.iterrows():
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
-                    if isinstance(val, str) and re.match(r'^[A-Z]\d+\)', str(val).strip()):
-                        current_subtopic = str(val).strip()
-                        break 
+        valid_sheets = [s for s in xls.sheet_names if str(s).upper().startswith('KOMPONEN')]
+        
+        for sheet in valid_sheets:
+            df = pd.read_excel(file_path, sheet_name=sheet)
+            item_list = []
+            current_subtopic = "KRITERIA UMUM"
             
-            no_item = None
-            perkara = None
-            rubrik = {}
-            
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
-                    
-                    if str(val).strip().isdigit():
-                        next_val = row.iloc[col_idx + 1]
-                        
-                        if pd.notna(next_val) and isinstance(next_val, str) and len(next_val.strip()) > 5:
-                            no_item = str(val).strip()
-                            perkara = str(next_val).strip()
-                            
-                            for i in range(1, 6):
-                                rub_idx = col_idx + 1 + i
-                                if rub_idx < len(row):
-                                    rub_val = str(row.iloc[rub_idx]).strip()
-                                    rubrik[i] = rub_val if rub_val != 'nan' else ""
-                                else:
-                                    rubrik[i] = ""
+            for index, row in df.iterrows():
+                for col_idx in [0, 1]:
+                    if col_idx < len(row):
+                        val = row.iloc[col_idx]
+                        if isinstance(val, str) and re.match(r'^[A-Z]\d+\)', str(val).strip()):
+                            current_subtopic = str(val).strip()
                             break 
-            
-            if no_item:
-                item_list.append({
-                    'Subtopik': current_subtopic,
-                    'No': no_item,
-                    'Perkara': perkara,
-                    'Rubrik': rubrik
-                })
                 
-        if item_list:
-            data_komponen[sheet] = item_list
-            
-    return data_komponen
+                no_item = None
+                perkara = None
+                rubrik = {}
+                
+                for col_idx in [0, 1]:
+                    if col_idx < len(row):
+                        val = row.iloc[col_idx]
+                        
+                        if str(val).strip().isdigit():
+                            next_val = row.iloc[col_idx + 1]
+                            
+                            if pd.notna(next_val) and isinstance(next_val, str) and len(next_val.strip()) > 5:
+                                no_item = str(val).strip()
+                                perkara = str(next_val).strip()
+                                
+                                for i in range(1, 6):
+                                    rub_idx = col_idx + 1 + i
+                                    if rub_idx < len(row):
+                                        rub_val = str(row.iloc[rub_idx]).strip()
+                                        rubrik[i] = rub_val if rub_val != 'nan' else ""
+                                    else:
+                                        rubrik[i] = ""
+                                break 
+                
+                if no_item:
+                    item_list.append({
+                        'Subtopik': current_subtopic,
+                        'No': no_item,
+                        'Perkara': perkara,
+                        'Rubrik': rubrik
+                    })
+                    
+            if item_list:
+                data_komponen[sheet] = item_list
+                
+        return data_komponen
+    except Exception:
+        return {}
 
 fail_excel = '8. MARKAH AUDIT EKSA.xlsx'
-try:
-    data_eksa = muat_data_eksa(fail_excel)
-except Exception as e:
-    st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
+data_eksa = muat_data_eksa(fail_excel)
+
+if not data_eksa:
+    st.error(f"Sistem tidak dapat membaca fail '{fail_excel}'. Pastikan nama fail tepat di GitHub.")
     st.stop()
 
 def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
@@ -373,7 +379,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                             for no_i, d_item in data_semasa[komponen_pilihan].items():
                                 item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
                                 
-                                # Muat Naik Ke Drive jika ada fail baru
                                 pautan_gambar = d_item['Gambar'] if isinstance(d_item['Gambar'], str) else ""
                                 if d_item.get('Gambar') is not None and not isinstance(d_item['Gambar'], str):
                                     nama_fail = f"SEBELUM_{zon_audit}_{komponen_pilihan}_Item{no_i}_{tarikh_sekarang}.png"
@@ -413,7 +418,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
 
 # ==========================================
-# PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
+# PAPARAN 2: MARKAH AUDIT
 # ==========================================
 elif menu_paparan == "📊 Markah Audit":
     if fail_logo:
@@ -531,7 +536,6 @@ elif menu_paparan == "📊 Markah Audit":
                                         else:
                                             st.image(data['Gambar'], width=120, caption="Bukti Gambar")
                                 
-                                # --- BUTANG SUNTING (EDIT) ---
                                 with c_edit:
                                     with st.popover("✏️ Edit"):
                                         st.markdown(f"**Edit Item {no_item}**")
@@ -580,7 +584,6 @@ elif menu_paparan == "📊 Markah Audit":
                                             st.success("✅ Rekod berjaya dikemas kini!")
                                             st.rerun()
 
-                                # --- BUTANG PADAM (DELETE) ---
                                 with c_del:
                                     if st.button("🗑️ Padam", key=f"del_{zon}_{nm_auditor}_{komp}_{no_item}", type="primary"):
                                         del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
