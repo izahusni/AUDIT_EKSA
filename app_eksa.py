@@ -29,7 +29,7 @@ try:
 except Exception as e:
     conn = None
 
-# Fungsi Memuat Naik Gambar ke Google Drive
+# Fungsi Memuat Naik Gambar ke Google Drive (Dibaiki untuk ralat 403 Storage Quota)
 def muat_naik_ke_gdrive(file_obj, file_name):
     try:
         creds_dict = st.secrets["connections"]["gsheets"]
@@ -46,16 +46,21 @@ def muat_naik_ke_gdrive(file_obj, file_name):
         
         media = MediaIoBaseUpload(io.BytesIO(file_obj.getvalue()), mimetype=file_obj.type)
         
+        # Tambah supportsAllDrives=True & supportsTeamDrives=True
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink'
+            fields='id, webViewLink',
+            supportsAllDrives=True,
+            supportsTeamDrives=True
         ).execute()
 
         # Berikan kebenaran 'Anyone with link can view' pada fail
         service.permissions().create(
             fileId=file.get('id'),
-            body={'role': 'reader', 'type': 'anyone'}
+            body={'role': 'reader', 'type': 'anyone'},
+            supportsAllDrives=True,
+            supportsTeamDrives=True
         ).execute()
 
         return file.get('webViewLink')
