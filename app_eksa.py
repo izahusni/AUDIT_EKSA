@@ -25,7 +25,8 @@ except Exception as e:
 def senkron_data_dari_gsheets():
     if conn is not None:
         try:
-            df_existing = conn.read(ttl=0) # Membaca terus menggunakan tetapan secrets.toml
+            # Masukkan parameter spreadsheet di sini
+            df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0) 
             if not df_existing.empty:
                 for _, row in df_existing.iterrows():
                     z = str(row['Zon'])
@@ -337,20 +338,19 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         
                         df_baru = pd.DataFrame(baris_baru)
                         try:
-                            df_lama = conn.read(ttl=0)
+                            # Masukkan parameter spreadsheet di sini
+                            df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                             df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
                         except Exception:
                             df_gabung = df_baru
                             
-                        # Kemaskini semula ke Google Sheets secara kekal
-                        conn.update(data=df_gabung)
+                        # Masukkan parameter spreadsheet di sini
+                        conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
                         st.success("✅ Data berjaya disimpan secara KEKAL ke Google Sheets!")
                     except Exception as err:
                         st.error(f"Gagal berhubung ke Google Sheets: {err}")
                 else:
                     st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
-    else:
-        st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
 
 
 # ==========================================
