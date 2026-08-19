@@ -5,3 +5,4 @@ Pillow>=10.0.0
 plotly>=5.18.0
 st-gsheets-connection>=0.1.0
 google-api-python-client>=2.0.0
+google-auth
