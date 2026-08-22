@@ -225,7 +225,6 @@ def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
     peratusan_keseluruhan = (total_markah_semua / total_penuh_semua) * 100 if total_penuh_semua > 0 else 0
     return ringkasan_markah, total_markah_semua, total_penuh_semua, peratusan_keseluruhan
 
-
 # --- 4. SIDEBAR LOGO ---
 fail_logo = None
 for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jpg']:
@@ -242,7 +241,8 @@ st.sidebar.header("Navigasi Sistem")
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
     "📋 Modul Kerja (Borang)", 
     "📊 Markah Audit", 
-    "🖨️ Laporan Penuh & Cetakan"
+    "🖨️ Laporan Penuh & Cetakan",
+    "📈 Rumusan Markah Terperinci" # MENU BARU DITAMBAH DI SINI
 ])
 
 
@@ -543,7 +543,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                     conn.update(spreadsheet=URL_GSHEETS, data=df_g)
                                                 except Exception:
                                                     pass
-                                                    
+                                                
                                             st.success("✅ Rekod berjaya dikemas kini!")
                                             st.rerun()
 
@@ -559,7 +559,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                 conn.update(spreadsheet=URL_GSHEETS, data=df_filtered)
                                             except Exception:
                                                 pass
-                                                
+                                            
                                         st.warning("🗑️ Rekod telah dipadam.")
                                         st.rerun()
 
@@ -901,3 +901,129 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
 
     st.markdown("---")
     st.markdown(f"<div class='jadual-laporan-wrapper'>{html_kandungan}</div>", unsafe_allow_html=True)
+
+
+# ==========================================
+# PAPARAN 4: RUMUSAN MARKAH TERPERINCI (BARU)
+# ==========================================
+elif menu_paparan == "📈 Rumusan Markah Terperinci":
+    if fail_logo:
+        st.image(fail_logo, width=150)
+        
+    st.title("📈 Rumusan Markah Terperinci")
+    st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi (rujukan imej).")
+    
+    pilih_komp = st.selectbox("Sila Pilih Komponen:", list(data_eksa.keys()))
+    zon_rasmi_list = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
+    
+    st.markdown("---")
+    
+    # CSS Custom Untuk Meniru Rekaan Jadual di `image_9402a6.png`
+    html_jadual_rumusan = f"""
+    <style>
+        .tabel-rumusan {{ 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 12px; 
+            font-family: Arial, sans-serif; 
+            background-color: white;
+            color: black;
+        }}
+        .tabel-rumusan th, .tabel-rumusan td {{ 
+            border: 2px solid #e67e22; /* Warna jingga rasmi */
+            padding: 6px; 
+            text-align: left; 
+            vertical-align: top; 
+        }}
+        .tabel-rumusan th {{ 
+            text-align: center; 
+            background-color: #fdebd0; /* Latar belakang oren cair */
+            font-weight: bold; 
+        }}
+        .subtopik-row {{ 
+            background-color: #fae5d3; 
+            font-weight: bold; 
+            text-transform: uppercase;
+        }}
+        .center-text {{ 
+            text-align: center; 
+        }}
+        .markah-column {{
+            width: 4%;
+            text-align: center;
+        }}
+    </style>
+    
+    <div style='overflow-x:auto;'>
+    <table class="tabel-rumusan">
+        <thead>
+            <tr>
+                <th colspan="7" style="font-size: 16px;">{pilih_komp.upper()}</th>
+                <th colspan="4" style="font-size: 14px;">MARKAH</th>
+            </tr>
+            <tr>
+                <th colspan="2" style="width: 25%;">KEPERLUAN UTAMA PELAKSANAAN</th>
+                <th style="width: 11%;">1</th>
+                <th style="width: 11%;">2</th>
+                <th style="width: 11%;">3</th>
+                <th style="width: 11%;">4</th>
+                <th style="width: 11%;">5</th>
+                <th class="markah-column">ZON<br>EFFEKTIF</th>
+                <th class="markah-column">ZON<br>KOMITED</th>
+                <th class="markah-column">ZON<br>SEPAKAT</th>
+                <th class="markah-column">ZON<br>AKTIF</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    current_sub = ""
+    jumlah_skor_zon = {z: 0 for z in zon_rasmi_list}
+    
+    for item in data_eksa[pilih_komp]:
+        if item['Subtopik'] != current_sub:
+            html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='11'>{item['Subtopik']}</td></tr>"
+            current_sub = item['Subtopik']
+            
+        skor_dicatat = {}
+        for z in zon_rasmi_list:
+            skor_semasa = ""
+            if z in st.session_state.pangkalan_data:
+                # Mengambil markah pertama yang ditemui bagi zon ini oleh mana-mana auditor
+                for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
+                    if pilih_komp in data_auditor and item['No'] in data_auditor[pilih_komp]:
+                        skor_val = data_auditor[pilih_komp][item['No']]['Markah']
+                        skor_semasa = skor_val
+                        jumlah_skor_zon[z] += skor_val
+                        break
+            skor_dicatat[z] = skor_semasa
+            
+        html_jadual_rumusan += f"""
+        <tr>
+            <td class="center-text"><b>{item['No']}</b></td>
+            <td>{item['Perkara']}</td>
+            <td>{item['Rubrik'].get(1, '')}</td>
+            <td>{item['Rubrik'].get(2, '')}</td>
+            <td>{item['Rubrik'].get(3, '')}</td>
+            <td>{item['Rubrik'].get(4, '')}</td>
+            <td>{item['Rubrik'].get(5, '')}</td>
+            <td class="center-text"><b>{skor_dicatat['ZON EFFEKTIF']}</b></td>
+            <td class="center-text"><b>{skor_dicatat['ZON KOMITED']}</b></td>
+            <td class="center-text"><b>{skor_dicatat['ZON SEPAKAT']}</b></td>
+            <td class="center-text"><b>{skor_dicatat['ZON AKTIF']}</b></td>
+        </tr>
+        """
+        
+    html_jadual_rumusan += f"""
+        <tr>
+            <td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px;">JUMLAH</td>
+            <td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON EFFEKTIF']}</td>
+            <td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON KOMITED']}</td>
+            <td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON SEPAKAT']}</td>
+            <td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON AKTIF']}</td>
+        </tr>
+    """
+    
+    html_jadual_rumusan += "</tbody></table></div>"
+    
+    st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
