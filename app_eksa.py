@@ -251,8 +251,6 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
 # PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
 # ==========================================
 if menu_paparan == "📋 Modul Kerja (Borang)":
-    if fail_logo:
-        st.image(fail_logo, width=150)
         
     st.title("Borang Penilaian EKSA")
     st.write("Sila lengkapkan maklumat audit dan pilih komponen yang ingin dinilai.")
