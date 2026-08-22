@@ -235,7 +235,7 @@ for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jp
 if fail_logo:
     st.sidebar.image(fail_logo, use_container_width=True)
 
-st.sidebar.title("Sistem Audit EKSA")
+st.sidebar.title("SISTEM AUDIT EKSA")
 st.sidebar.markdown("---")
 st.sidebar.header("Navigasi Sistem")
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
