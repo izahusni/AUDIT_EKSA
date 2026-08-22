@@ -241,8 +241,9 @@ st.sidebar.header("Navigasi Sistem")
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
     "📋 Modul Kerja (Borang)", 
     "📊 Markah Audit", 
-    "🖨️ Laporan Penuh & Cetakan",
     "📈 Rumusan Markah Terperinci" # MENU BARU DITAMBAH DI SINI
+    "🖨️ Laporan Penuh & Cetakan",
+    
 ])
 
 
