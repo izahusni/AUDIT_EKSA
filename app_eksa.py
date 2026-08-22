@@ -1015,7 +1015,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         </button>
         """,
         height=65
-    )
+    ) st.markdown("---")
+    st.markdown(f"<div class='jadual-laporan-wrapper'>{html_kandungan}</div>", unsafe_allow_html=True)
 
 
 
