@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
 
 # --- 1. KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
+st.set_page_config(page_title="SISTEM AUDIT EKSA", page_icon="📝", layout="wide")
 
 # PAUTAN GOOGLE SHEETS ANDA
 URL_GSHEETS = "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing"
