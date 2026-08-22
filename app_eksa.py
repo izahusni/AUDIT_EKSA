@@ -386,8 +386,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 # PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
 # ==========================================
 elif menu_paparan == "📊 Markah Audit":
-    if fail_logo:
-        st.image(fail_logo, width=150)
         
     st.title("📊 Papan Markah Audit EKSA")
     st.write("Paparan analisis interaktif berdasarkan Komponen, Zon, Lokasi, dan Juruaudit.")
@@ -661,8 +659,6 @@ elif menu_paparan == "📊 Markah Audit":
 # PAPARAN 3: RUMUSAN MARKAH TERPERINCI (BARU)
 # ==========================================
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
-    if fail_logo:
-        st.image(fail_logo, width=150)
         
     st.title("📈 Rumusan Markah Terperinci")
     st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi (rujukan imej).")
@@ -780,8 +776,6 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
 elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
-    if fail_logo:
-        st.image(fail_logo, width=150)
         
     st.title("🖨️ Pusat Pelaporan & Cetakan")
     st.write("Sila pilih jenis cetakan laporan yang dikehendaki:")
