@@ -129,7 +129,7 @@ st.markdown("""
         font-weight: bold;
         color: #000000 !important;
     }
-    .header-effektif { background-color: #fef3c7 !important; color: #000000 !important; }
+    .header-efektif { background-color: #fef3c7 !important; color: #000000 !important; }
     .header-komited { background-color: #bfdbfe !important; color: #000000 !important; }
     .header-sepakat { background-color: #fca5a5 !important; color: #000000 !important; }
     .header-aktif { background-color: #bbf7d0 !important; color: #000000 !important; }
@@ -220,7 +220,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["11", "13", "14", "15", "16"]
             
     elif "KOMPONEN C" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
             item_dikecualikan = ["5", "6", "7", "8"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "6", "7"]
@@ -230,7 +230,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["1", "5", "6", "7", "8"]
             
     elif "KOMPONEN D" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "5", "6"]
@@ -322,7 +322,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
             pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
         else:
             # Tetap guna ejaan rasmi di dropdown untuk keseragaman database
-            pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
+            pilihan_zon_rasmi = ["ZON EFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
             
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
         
@@ -752,7 +752,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
         zon_rasmi_list = ["ZON INDUK"]
     else:
-        zon_rasmi_list = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
+        zon_rasmi_list = ["ZON EFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
     st.markdown("---")
     
@@ -894,7 +894,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     with col_i2:
         tarikh_audit_cetak = st.date_input("Tarikh Audit:", datetime.date.today())
     
-    zon_rasmi_list = ["ZON INDUK", "ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
+    zon_rasmi_list = ["ZON INDUK", "ZON EFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
     # DIKEMAS KINI: HANYA CAMPUR ITEM SAH SUPAYA KIRAAN TEPAT PER-100
     def kumpul_markah_zon(zon_nama, komp_nama):
@@ -943,7 +943,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                     <th class="header-kelabu" style="width: 5%;">BIL.</th>
                     <th class="header-kelabu" style="width: 40%;">KOMPONEN</th>
                     <th class="header-induk" style="width: 11%;">% MARKAH<br>ZON INDUK</th>
-                    <th class="header-effektif" style="width: 11%;">% MARKAH<br>ZON EFFEKTIF</th>
+                    <th class="header-efektif" style="width: 11%;">% MARKAH<br>ZON EFEKTIF</th>
                     <th class="header-komited" style="width: 11%;">% MARKAH<br>ZON KOMITED</th>
                     <th class="header-sepakat" style="width: 11%;">% MARKAH<br>ZON SEPAKAT</th>
                     <th class="header-aktif" style="width: 11%;">% MARKAH<br>ZON AKTIF</th>
@@ -1012,7 +1012,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                     <th rowspan="2" class="header-kelabu" style="width: 4%;">BIL.</th>
                     <th rowspan="2" class="header-kelabu" style="width: 26%;">KOMPONEN</th>
                     <th colspan="2" class="header-induk">ZON INDUK</th>
-                    <th colspan="2" class="header-effektif">ZON EFFEKTIF</th>
+                    <th colspan="2" class="header-efektif">ZON EFEKTIF</th>
                     <th colspan="2" class="header-komited">ZON KOMITED</th>
                     <th colspan="2" class="header-sepakat">ZON SEPAKAT</th>
                     <th colspan="2" class="header-aktif">ZON AKTIF</th>
@@ -1020,8 +1020,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 <tr>
                     <th class="header-induk">PENUH</th>
                     <th class="header-induk">MARKAH</th>
-                    <th class="header-effektif">PENUH</th>
-                    <th class="header-effektif">MARKAH</th>
+                    <th class="header-efektif">PENUH</th>
+                    <th class="header-efektif">MARKAH</th>
                     <th class="header-komited">PENUH</th>
                     <th class="header-komited">MARKAH</th>
                     <th class="header-sepakat">PENUH</th>
@@ -1114,7 +1114,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; text-align: center; margin-top: 10px; background-color: #ffffff !important; color: #000000 !important; }}');
             mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000000 !important; padding: 6px 8px; color: #000000 !important; background-color: #ffffff; }}');
             mywindow.document.write('.header-induk {{ background-color: #e9d5ff !important; color: #000000 !important; }}');
-            mywindow.document.write('.header-effektif {{ background-color: #fef3c7 !important; color: #000000 !important; }}');
+            mywindow.document.write('.header-efektif {{ background-color: #fef3c7 !important; color: #000000 !important; }}');
             mywindow.document.write('.header-komited {{ background-color: #bfdbfe !important; color: #000000 !important; }}');
             mywindow.document.write('.header-sepakat {{ background-color: #fca5a5 !important; color: #000000 !important; }}');
             mywindow.document.write('.header-aktif {{ background-color: #bbf7d0 !important; color: #000000 !important; }}');
