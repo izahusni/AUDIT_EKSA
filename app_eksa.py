@@ -313,11 +313,14 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
 # ==========================================
 # PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
 # ==========================================
+# ==========================================
+# PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
+# ==========================================
 if menu_paparan == "📋 Modul Kerja (Borang)":
-        
+
     st.title("Borang Penilaian EKSA")
     st.write("Sila lengkapkan maklumat audit dan pilih komponen yang ingin dinilai.")
-    
+
     col_info1, col_info2, col_info3, col_info4 = st.columns([1, 1, 1.2, 1])
     with col_info1:
         komponen_pilihan = st.selectbox("1. Pilih Komponen:", list(data_eksa.keys()))
@@ -326,11 +329,10 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
             pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
         else:
-            # Tetap guna ejaan rasmi di dropdown untuk keseragaman database
             pilihan_zon_rasmi = ["ZON EFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
-            
+
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
-        
+
         if lokasi_audit_sel == "ZON LAIN-LAIN...":
             zon_audit = st.text_input("Nama Zon Manual:").strip().upper()
         else:
@@ -347,85 +349,108 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
             st.session_state.pangkalan_data[zon_audit] = {}
         if nama_juruaudit not in st.session_state.pangkalan_data[zon_audit]:
             st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = {}
-            
+
         data_semasa = st.session_state.pangkalan_data[zon_audit][nama_juruaudit]
         data_semasa['_lokasi_khusus'] = lokasi_khusus
-        
+
         st.subheader(f"Menilai: {komponen_pilihan}")
         st.caption(f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}")
-        
+
         # MENGGUNAKAN ITEM YANG TELAH DITAPIS MENGIKUT ZON
         items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
-        
+
         if komponen_pilihan not in data_semasa:
             data_semasa[komponen_pilihan] = {}
+
+        # Semak jika komponen ini pernah dinilai sebelumnya
+        komponen_pernah_dinilai = len(data_semasa[komponen_pilihan]) > 0
 
         if not items:
             st.info("Tiada item untuk dinilai bagi komponen dan zon yang dipilih berdasarkan kriteria pengecualian.")
         else:
             with st.form(key=f"form_{komponen_pilihan}"):
                 current_displayed_subtopic = ""
-                
+                temp_data_komponen = {} # Simpanan sementara semasa merender borang
+
                 for item in items:
                     if item['Subtopik'] != current_displayed_subtopic:
                         st.markdown(f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>", unsafe_allow_html=True)
                         current_displayed_subtopic = item['Subtopik']
-                    
+
                     st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
-                    
+
                     with st.expander(f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"):
                         for skor, deskripsi in item['Rubrik'].items():
                             if deskripsi and deskripsi != 'nan':
                                 st.write(f"**Skor {skor}:** {deskripsi}")
+
+                    rekod_lama = data_semasa[komponen_pilihan].get(item['No'], None)
                     
-                    rekod_lama = data_semasa[komponen_pilihan].get(item['No'], {
-                        'Markah': 3, 'Ulasan': '', 'Gambar': None, 
-                        'Ulasan_Susulan': '', 'Gambar_Susulan': None, 'Tarikh_Susulan': datetime.date.today()
-                    })
-                    
-                    col1, col2, col3 = st.columns([1, 1.5, 1.5])
+                    if rekod_lama is None:
+                        # Jika tiada rekod lama bagi item ini, set 'N/A' jika komponen pernah dihantar (bermaksud item dipadam)
+                        # Jika ia adalah borang komponen baharu, set default kepada 3
+                        default_markah = "N/A" if komponen_pernah_dinilai else 3
+                        default_ulasan = ""
+                        default_gambar = None
+                        default_ulasan_susulan = ""
+                        default_gambar_susulan = None
+                        default_tarikh_susulan = datetime.date.today()
+                    else:
+                        default_markah = rekod_lama['Markah']
+                        default_ulasan = rekod_lama['Ulasan']
+                        default_gambar = rekod_lama['Gambar']
+                        default_ulasan_susulan = rekod_lama.get('Ulasan_Susulan', '')
+                        default_gambar_susulan = rekod_lama.get('Gambar_Susulan', None)
+                        default_tarikh_susulan = rekod_lama.get('Tarikh_Susulan', datetime.date.today())
+
+                    col1, col2, col3 = st.columns([1.2, 1.3, 1.5])
                     with col1:
-                        markah = st.radio("Markah", options=[1, 2, 3, 4, 5], 
-                                          index=[1, 2, 3, 4, 5].index(rekod_lama['Markah']), 
+                        markah = st.radio("Skor Penilaian", options=[1, 2, 3, 4, 5, "N/A"], 
+                                          index=[1, 2, 3, 4, 5, "N/A"].index(default_markah), 
                                           horizontal=True, key=f"mark_{komponen_pilihan}_{item['No']}")
                     with col2:
-                        ulasan = st.text_input("Ulasan/Komen Asal", value=rekod_lama['Ulasan'], 
+                        ulasan = st.text_input("Ulasan/Komen", value=default_ulasan, 
                                                key=f"ulasan_{komponen_pilihan}_{item['No']}")
                     with col3:
-                        gambar_muat_naik = st.file_uploader("Muat Naik Bukti (Sebelum)", type=['png', 'jpg', 'jpeg'], 
+                        gambar_muat_naik = st.file_uploader("Muat Naik Bukti", type=['png', 'jpg', 'jpeg'], 
                                                             key=f"gambar_{komponen_pilihan}_{item['No']}")
-                        gambar_disimpan = rekod_lama['Gambar']
-                        
+                        gambar_disimpan = default_gambar
+
                         if gambar_muat_naik is not None:
                             gambar_disimpan = gambar_ke_base64(gambar_muat_naik)
 
                         if gambar_disimpan:
                             st.image(gambar_disimpan, width=120, caption="Gambar dimuat naik")
+
+                    # Simpan dalam dict sementara HANYA jika pengguna tidak memilih "N/A"
+                    if markah != "N/A":
+                        temp_data_komponen[item['No']] = {
+                            'Markah': markah, 
+                            'Ulasan': ulasan,
+                            'Gambar': gambar_disimpan,
+                            'Ulasan_Susulan': default_ulasan_susulan,
+                            'Gambar_Susulan': default_gambar_susulan,
+                            'Tarikh_Susulan': default_tarikh_susulan
+                        }
                     
-                    data_semasa[komponen_pilihan][item['No']] = {
-                        'Markah': markah, 
-                        'Ulasan': ulasan,
-                        'Gambar': gambar_disimpan,
-                        'Ulasan_Susulan': rekod_lama['Ulasan_Susulan'],
-                        'Gambar_Susulan': rekod_lama['Gambar_Susulan'],
-                        'Tarikh_Susulan': rekod_lama.get('Tarikh_Susulan', datetime.date.today())
-                    }
                     st.markdown("---")
-                    
+
                 hantar = st.form_submit_button("Simpan Markah & Gambar")
-                
+
                 if hantar:
+                    # Kemas kini state dengan data yang sah (N/A diabaikan sepenuhnya)
+                    data_semasa[komponen_pilihan] = temp_data_komponen
                     st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
-                    
+
                     if conn is not None:
                         try:
                             baris_baru = []
                             tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
-                            
-                            for no_i, d_item in data_semasa[komponen_pilihan].items():
+
+                            for no_i, d_item in temp_data_komponen.items():
                                 padanan = [orig for orig in data_eksa.get(komponen_pilihan, []) if str(orig['No']).strip() == str(no_i).strip()]
                                 subtopik_val = padanan[0]['Subtopik'] if padanan else "KRITERIA UMUM"
-                                
+
                                 baris_baru.append({
                                     'Tarikh': tarikh_sekarang,
                                     'Zon': zon_audit,
@@ -438,14 +463,24 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                     'Ulasan': d_item['Ulasan'],
                                     'Gambar_Base64': d_item['Gambar'] if d_item['Gambar'] else ''
                                 })
-                            
+
                             df_baru = pd.DataFrame(baris_baru)
-                            try:
-                                df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-                                df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
-                            except Exception:
-                                df_gabung = df_baru
-                                
+
+                            # Baca dan tapis data lama GSheets (Padam rekod lama Zon & Komponen ini)
+                            df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                            if not df_lama.empty:
+                                mask = ~((df_lama['Zon'] == zon_audit) & 
+                                         (df_lama['Juruaudit'] == nama_juruaudit) & 
+                                         (df_lama['Komponen'] == komponen_pilihan))
+                                df_filtered = df_lama[mask]
+                            else:
+                                df_filtered = pd.DataFrame()
+
+                            if not df_baru.empty:
+                                df_gabung = pd.concat([df_filtered, df_baru], ignore_index=True)
+                            else:
+                                df_gabung = df_filtered
+
                             conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
                             st.success("✅ Data dan gambar berjaya disimpan secara KEKAL ke Google Sheets!")
                         except Exception as err:
@@ -454,7 +489,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
     else:
         st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
-
 
 # ==========================================
 # PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
