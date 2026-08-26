@@ -62,10 +62,15 @@ def senkron_data_dari_gsheets():
                     if pd.isna(row.get('Zon')) or pd.isna(row.get('Juruaudit')) or pd.isna(row.get('Komponen')):
                         continue
 
-                    z = str(row['Zon']).strip()
+                    # KEMAS KINI PENTING: Paksa "Zon" jadi UPPERCASE supaya match dengan Zon Rasmi Paparan 3 & 4
+                    z = str(row['Zon']).strip().upper()
                     j = str(row['Juruaudit']).strip()
                     k = str(row['Komponen']).strip()
+                    
+                    # KEMAS KINI PENTING: Buang '.0' jika Pandas baca format nombor item sebagai Float
                     no_i = str(row.get('No_Item', '')).strip()
+                    if no_i.endswith('.0'):
+                        no_i = no_i[:-2]
 
                     if z not in data_terkini:
                         data_terkini[z] = {}
@@ -346,9 +351,6 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
 ])
 
 
-# ==========================================
-# PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
-# ==========================================
 # ==========================================
 # PAPARAN 1: BORANG PENILAIAN (MODUL KERJA)
 # ==========================================
@@ -814,7 +816,7 @@ elif menu_paparan == "📊 Markah Audit":
             st.success("Tahniah! Tiada item dengan markah rendah (1 atau 2) yang memerlukan tindakan susulan bagi tetapan yang dipilih.")
 
 # ==========================================
-# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (BARU)
+# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (DIKEMAS KINI)
 # ==========================================
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
         
@@ -904,19 +906,24 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
         for z in zon_rasmi_list:
             # SEMAK JIKA ITEM INI DIKECUALIKAN UNTUK ZON BERKENAAN
             item_sebenar_zon = dapatkan_item_tapis(pilih_komp, z)
-            item_nums_zon = [str(x['No']) for x in item_sebenar_zon]
+            item_nums_zon = [str(x['No']).strip() for x in item_sebenar_zon]
             
-            if str(item['No']) not in item_nums_zon:
+            if str(item['No']).strip() not in item_nums_zon:
                 skor_dicatat[z] = "N/A"
             else:
                 skor_semasa = ""
+                # KEMAS KINI: Memastikan data dicari secara kalis ralat
                 if z in st.session_state.pangkalan_data:
                     for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
-                        if pilih_komp in data_auditor and item['No'] in data_auditor[pilih_komp]:
-                            skor_val = data_auditor[pilih_komp][item['No']]['Markah']
-                            skor_semasa = skor_val
-                            jumlah_skor_zon[z] += skor_val
-                            break
+                        if pilih_komp in data_auditor:
+                            for k_no, k_data in data_auditor[pilih_komp].items():
+                                if str(k_no).strip() == str(item['No']).strip():
+                                    skor_semasa = k_data.get('Markah', '')
+                                    if skor_semasa in [1, 2, 3, 4, 5]:
+                                        jumlah_skor_zon[z] += skor_semasa
+                                    break
+                        if skor_semasa != "":
+                            break # Henti mencari setelah menjumpai dari salah seorang auditor
                 skor_dicatat[z] = skor_semasa
             
         kolum_markah_html = ""
@@ -948,7 +955,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
 
 # ==========================================
-# PAPARAN 4: LAPORAN PENUH & CETAKAN
+# PAPARAN 4: LAPORAN PENUH & CETAKAN (DIKEMAS KINI)
 # ==========================================
 elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         
@@ -984,17 +991,19 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
 
         # Dapatkan item yang HANYA sah untuk zon ini
         item_sah = dapatkan_item_tapis(komp_nama, zon_nama)
-        no_item_sah = [str(x['No']) for x in item_sah]
+        no_item_sah = [str(x['No']).strip() for x in item_sah]
 
         total_m = 0
         total_p = 0
         
-        if zon_nama in st.session_state.pangkalan_data:
-            dict_zon = st.session_state.pangkalan_data[zon_nama]
+        # Keselamatan tambahan dengan padanan Case Insensitive
+        zon_nama_upper = zon_nama.upper()
+        if zon_nama_upper in st.session_state.pangkalan_data:
+            dict_zon = st.session_state.pangkalan_data[zon_nama_upper]
             for nm_aud, data_aud in dict_zon.items():
                 if komp_nama in data_aud:
                     for no_i, d_item in data_aud[komp_nama].items():
-                        if str(no_i) in no_item_sah and isinstance(d_item, dict):
+                        if str(no_i).strip() in no_item_sah and isinstance(d_item, dict):
                             markah_item = d_item.get('Markah', 0)
                             
                             # HANYA kumpul jika markah adalah sah (1, 2, 3, 4, 5).
