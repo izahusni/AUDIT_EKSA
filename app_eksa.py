@@ -202,10 +202,11 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI BARU: PENAPISAN ITEM MENGIKUT ZON ---
+# --- FUNGSI BARU: PENAPISAN ITEM MENGIKUT ZON (VERSI KEBAL) ---
 def dapatkan_item_tapis(komponen, zon):
-    komponen_upper = str(komponen).upper()
-    zon_upper = str(zon).upper()
+    # .strip() memastikan tiada 'space' kosong yang mengganggu bacaan
+    komponen_upper = str(komponen).upper().strip()
+    zon_upper = str(zon).upper().strip()
     item_dikecualikan = []
     
     # Logik pengecualian mengikut zon
@@ -243,9 +244,12 @@ def dapatkan_item_tapis(komponen, zon):
     filtered_items = []
     
     for item in items_asal:
-        # Ambil nombor sahaja dari item['No'] untuk penapisan tepat (contoh: 'B12' -> '12')
+        # Menarik keluar sebarang nombor bulat. 
+        # Jika dalam Excel ditulis "B12" atau " 12 ", ia tetap diekstrak menjadi "12".
         num_only = ''.join(filter(str.isdigit, str(item['No'])))
-        if num_only not in item_dikecualikan:
+        
+        # Tambah ke dalam senarai borang jika nombor item BUKAN dalam senarai dikecualikan
+        if num_only and num_only not in item_dikecualikan:
             filtered_items.append(item)
             
     return filtered_items
