@@ -26,7 +26,7 @@ try:
 except Exception as e:
     conn = None
 
-# Fungsi Penukaran Gambar ke Base64 dengan Pemampatan (Mengelak Ralat >50,000 aksara)
+# Fungsi Penukaran Gambar ke Base64 dengan Pemampatan
 def gambar_ke_base64(file_obj, max_size=(300, 300), quality=50):
     if file_obj is None:
         return None
@@ -205,47 +205,51 @@ except Exception as e:
 # --- FUNGSI BARU: PENAPISAN ITEM MENGIKUT ZON ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
+    zon_upper = str(zon).upper()
     item_dikecualikan = []
     
-    # Logik pengecualian mengikut zon yang diminta
+    # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF/EFFEKTIF)
     if "KOMPONEN B" in komponen_upper:
-        if zon == "ZON EFFEKTIF":
+        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
-        elif zon == "ZON KOMITED":
+        elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]
-        elif zon == "ZON SEPAKAT":
+        elif "SEPAKAT" in zon_upper:
             item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
-        elif zon == "ZON AKTIF":
+        elif "AKTIF" in zon_upper:
             item_dikecualikan = ["11", "13", "14", "15", "16"]
+            
     elif "KOMPONEN C" in komponen_upper:
-        if zon == "ZON EFFEKTIF":
+        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
             item_dikecualikan = ["5", "6", "7", "8"]
-        elif zon == "ZON KOMITED":
+        elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "6", "7"]
-        elif zon == "ZON SEPAKAT":
+        elif "SEPAKAT" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "5", "8"]
-        elif zon == "ZON AKTIF":
+        elif "AKTIF" in zon_upper:
             item_dikecualikan = ["1", "5", "6", "7", "8"]
+            
     elif "KOMPONEN D" in komponen_upper:
-        if zon == "ZON EFFEKTIF":
+        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]
-        elif zon == "ZON KOMITED":
+        elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "5", "6"]
-        elif zon == "ZON SEPAKAT":
+        elif "SEPAKAT" in zon_upper:
             item_dikecualikan = ["1", "5", "6"]
-        elif zon == "ZON AKTIF":
+        elif "AKTIF" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "4", "6"]
             
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
     for item in items_asal:
-        # Ambil nombor sahaja dari item['No'] (untuk menangani format seperti 'B12' atau '12')
+        # Ambil nombor sahaja dari item['No'] untuk penapisan tepat
         num_only = ''.join(filter(str.isdigit, str(item['No'])))
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
             
     return filtered_items
 
+# --- FUNGSI KIRA PRESTASI (DIKEMAS KINI: HANYA KIRA ITEM SAH) ---
 def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
@@ -255,10 +259,19 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     
     for komp in komponen_dipilih:
         rekod_komponen = data_individu.get(komp, {})
-        jumlah_markah = sum([val['Markah'] for val in rekod_komponen.values() if isinstance(val, dict)]) if rekod_komponen else 0
         
-        # Guna senarai item yang ditapis untuk mendapatkan jumlah item / markah penuh sebenar
-        jumlah_item = len(dapatkan_item_tapis(komp, zon))
+        # Dapatkan item yang HANYA SAH untuk zon ini
+        item_sah = dapatkan_item_tapis(komp, zon)
+        no_item_sah = [str(x['No']) for x in item_sah]
+        
+        jumlah_markah = 0
+        if rekod_komponen:
+            for no_i, val in rekod_komponen.items():
+                # HANYA campur markah jika item tidak dibuang
+                if str(no_i) in no_item_sah and isinstance(val, dict):
+                    jumlah_markah += val['Markah']
+        
+        jumlah_item = len(item_sah)
         markah_penuh = jumlah_item * 5
         
         peratusan = (jumlah_markah / markah_penuh) * 100 if markah_penuh > 0 else 0
@@ -289,7 +302,6 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
     "📊 Markah Audit", 
     "📈 Rumusan Markah Terperinci",
     "🖨️ Laporan Penuh & Cetakan",
-    
 ])
 
 
@@ -309,6 +321,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
             pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
         else:
+            # Tetap guna ejaan rasmi di dropdown untuk keseragaman database
             pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
             
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
@@ -483,7 +496,6 @@ elif menu_paparan == "📊 Markah Audit":
             auditor_sasaran = list(dict_zon.keys()) if pilih_auditor == "Semua Juruaudit" else ([pilih_auditor] if pilih_auditor in dict_zon else [])
             
             for nm_auditor in auditor_sasaran:
-                # KIRA PRESTASI KINI MENGHANTAR `zon` UNTUK PENAPISAN MARKAH PENUH
                 ringkasan, jum_markah, jum_penuh, peratus = kira_prestasi(dict_zon[nm_auditor], zon, pilih_komponen)
                 lok_khusus = dict_zon[nm_auditor].get('_lokasi_khusus', 'Biasa')
                 if jum_penuh > 0:
@@ -539,7 +551,14 @@ elif menu_paparan == "📊 Markah Audit":
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
                     
+                    item_sah_zon = dapatkan_item_tapis(komp, zon)
+                    no_item_sah_zon = [str(x['No']) for x in item_sah_zon]
+                    
                     for no_item, data in list(rekod_komp.items()):
+                        # Sembunyikan item yang dibuang agar markah tidak terpapar/diedit
+                        if str(no_item) not in no_item_sah_zon:
+                            continue
+                            
                         if isinstance(data, dict):
                             ada_rekod = True
                             padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
@@ -635,8 +654,11 @@ elif menu_paparan == "📊 Markah Audit":
                 
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
+                    item_sah_zon = dapatkan_item_tapis(komp, zon)
+                    no_item_sah_zon = [str(x['No']) for x in item_sah_zon]
+                    
                     for no_item, data in rekod_komp.items():
-                        if isinstance(data, dict) and data.get('Markah') == 5:
+                        if str(no_item) in no_item_sah_zon and isinstance(data, dict) and data.get('Markah') == 5:
                             ada_cemerlang = True
                             padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
                             subtopik_item = padanan_item[0]['Subtopik'] if padanan_item else "KRITERIA UMUM"
@@ -662,8 +684,11 @@ elif menu_paparan == "📊 Markah Audit":
                 
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
+                    item_sah_zon = dapatkan_item_tapis(komp, zon)
+                    no_item_sah_zon = [str(x['No']) for x in item_sah_zon]
+                    
                     for no_item, data in rekod_komp.items():
-                        if isinstance(data, dict) and data.get('Markah', 5) <= 2:
+                        if str(no_item) in no_item_sah_zon and isinstance(data, dict) and data.get('Markah', 5) <= 2:
                             ada_kelemahan = True
                             padanan_item = [orig for orig in data_eksa.get(komp, []) if str(orig['No']).strip() == str(no_item).strip()]
                             subtopik_item = padanan_item[0]['Subtopik'] if padanan_item else "KRITERIA UMUM"
@@ -719,7 +744,7 @@ elif menu_paparan == "📊 Markah Audit":
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
         
     st.title("📈 Rumusan Markah Terperinci")
-    st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi (rujukan imej).")
+    st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi.")
     
     pilih_komp = st.selectbox("Sila Pilih Komponen:", list(data_eksa.keys()))
     
@@ -871,6 +896,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     
     zon_rasmi_list = ["ZON INDUK", "ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
+    # DIKEMAS KINI: HANYA CAMPUR ITEM SAH SUPAYA KIRAAN TEPAT PER-100
     def kumpul_markah_zon(zon_nama, komp_nama):
         komp_upper = str(komp_nama).upper()
         is_komp_a_or_e = "KOMPONEN A" in komp_upper or "KOMPONEN E" in komp_upper
@@ -881,17 +907,21 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         if zon_nama != "ZON INDUK" and is_komp_a_or_e:
             return 0, 0
 
+        # Dapatkan item yang HANYA sah untuk zon ini
+        item_sah = dapatkan_item_tapis(komp_nama, zon_nama)
+        no_item_sah = [str(x['No']) for x in item_sah]
+
         total_m = 0
         if zon_nama in st.session_state.pangkalan_data:
             dict_zon = st.session_state.pangkalan_data[zon_nama]
             for nm_aud, data_aud in dict_zon.items():
                 if komp_nama in data_aud:
                     for no_i, d_item in data_aud[komp_nama].items():
-                        if isinstance(d_item, dict) and 'Markah' in d_item:
+                        # HANYA kumpul markah sekiranya item tersebut belum di buang/dikecualikan
+                        if str(no_i) in no_item_sah and isinstance(d_item, dict) and 'Markah' in d_item:
                             total_m += d_item['Markah']
         
-        # MENGGUNAKAN ITEM DITAPIS UNTUK TOTAL MARKAH PENUH
-        total_p = len(dapatkan_item_tapis(komp_nama, zon_nama)) * 5
+        total_p = len(item_sah) * 5
         return total_m, total_p
 
     html_kandungan = ""
