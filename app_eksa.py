@@ -50,36 +50,72 @@ def gambar_ke_base64(file_obj, max_size=(300, 300), quality=50):
 def senkron_data_dari_gsheets():
     if conn is not None:
         try:
+            # ttl=0 untuk memastikan tiada cache yang disimpan
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+            
+            # 1. KOSONGKAN memori data sementara untuk elak data 'Ghost' (yang dah di-delete) muncul kembali
+            data_terkini = {}
+            
             if not df_existing.empty:
                 for _, row in df_existing.iterrows():
-                    z = str(row['Zon'])
-                    j = str(row['Juruaudit'])
-                    k = str(row['Komponen'])
-                    no_i = str(row['No_Item'])
-                    
-                    if z not in st.session_state.pangkalan_data:
-                        st.session_state.pangkalan_data[z] = {}
-                    if j not in st.session_state.pangkalan_data[z]:
-                        st.session_state.pangkalan_data[z][j] = {}
+                    # 2. Langkah Keselamatan (Bypass ralat jika terjumpa baris kosong di GSheets)
+                    if pd.isna(row.get('Zon')) or pd.isna(row.get('Juruaudit')) or pd.isna(row.get('Komponen')):
+                        continue
+
+                    z = str(row['Zon']).strip()
+                    j = str(row['Juruaudit']).strip()
+                    k = str(row['Komponen']).strip()
+                    no_i = str(row.get('No_Item', '')).strip()
+
+                    if z not in data_terkini:
+                        data_terkini[z] = {}
+                    if j not in data_terkini[z]:
+                        data_terkini[z][j] = {}
+
+                    data_terkini[z][j]['_lokasi_khusus'] = str(row.get('Lokasi', ''))
+
+                    if k not in data_terkini[z][j]:
+                        data_terkini[z][j][k] = {}
+
+                    # Baiki ralat gambar "nan" (kosong)
+                    gbr_val = str(row.get('Gambar_Base64', ''))
+                    if pd.isna(row.get('Gambar_Base64')) or gbr_val.lower() == 'nan' or gbr_val == '':
+                        gbr_val = None
+
+                    # 3. Baiki Ralat Markah yang buat data hilang masa refresh
+                    try:
+                        markah_val = int(float(row.get('Markah', 0)))
+                    except (ValueError, TypeError):
+                        markah_val = 0
+
+                    # 4. Ambil kira Tindakan Susulan sekiranya wujud di Gsheets
+                    ulasan_susulan = str(row.get('Ulasan_Susulan', ''))
+                    if pd.isna(row.get('Ulasan_Susulan')) or ulasan_susulan.lower() == 'nan':
+                        ulasan_susulan = ''
                         
-                    st.session_state.pangkalan_data[z][j]['_lokasi_khusus'] = str(row['Lokasi'])
-                    
-                    if k not in st.session_state.pangkalan_data[z][j]:
-                        st.session_state.pangkalan_data[z][j][k] = {}
-                        
-                    gbr_val = str(row['Gambar_Base64']) if 'Gambar_Base64' in row and pd.notna(row['Gambar_Base64']) else None
-                    
-                    st.session_state.pangkalan_data[z][j][k][no_i] = {
-                        'Markah': int(row['Markah']),
-                        'Ulasan': str(row['Ulasan']) if pd.notna(row['Ulasan']) else '',
+                    gbr_susulan = str(row.get('Gambar_Susulan', ''))
+                    if pd.isna(row.get('Gambar_Susulan')) or gbr_susulan.lower() == 'nan' or gbr_susulan == '':
+                        gbr_susulan = None
+
+                    tarikh_s = row.get('Tarikh_Susulan', datetime.date.today())
+                    if pd.isna(tarikh_s):
+                        tarikh_s = datetime.date.today()
+
+                    data_terkini[z][j][k][no_i] = {
+                        'Markah': markah_val,
+                        'Ulasan': str(row.get('Ulasan', '')) if pd.notna(row.get('Ulasan')) else '',
                         'Gambar': gbr_val,
-                        'Ulasan_Susulan': '',
-                        'Gambar_Susulan': None,
-                        'Tarikh_Susulan': datetime.date.today()
+                        'Ulasan_Susulan': ulasan_susulan,
+                        'Gambar_Susulan': gbr_susulan,
+                        'Tarikh_Susulan': tarikh_s
                     }
-        except Exception:
-            pass
+            
+            # Gantikan session_state lama dengan data baru yang 100% sama dengan GSheets
+            st.session_state.pangkalan_data = data_terkini
+
+        except Exception as e:
+            # Outputkan log ralat sekiranya Gsheets rosak atau tidak dapat dibaca
+            st.error(f"Ralat sistem menyegerak data GSheets: {e}")
 
 senkron_data_dari_gsheets()
 
