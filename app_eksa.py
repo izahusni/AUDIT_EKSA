@@ -202,7 +202,51 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
+# --- FUNGSI BARU: PENAPISAN ITEM MENGIKUT ZON ---
+def dapatkan_item_tapis(komponen, zon):
+    komponen_upper = str(komponen).upper()
+    item_dikecualikan = []
+    
+    # Logik pengecualian mengikut zon yang diminta
+    if "KOMPONEN B" in komponen_upper:
+        if zon == "ZON EFFEKTIF":
+            item_dikecualikan = ["12", "13", "15"]
+        elif zon == "ZON KOMITED":
+            item_dikecualikan = ["11", "14", "16"]
+        elif zon == "ZON SEPAKAT":
+            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
+        elif zon == "ZON AKTIF":
+            item_dikecualikan = ["11", "13", "14", "15", "16"]
+    elif "KOMPONEN C" in komponen_upper:
+        if zon == "ZON EFFEKTIF":
+            item_dikecualikan = ["5", "6", "7", "8"]
+        elif zon == "ZON KOMITED":
+            item_dikecualikan = ["1", "6", "7"]
+        elif zon == "ZON SEPAKAT":
+            item_dikecualikan = ["1", "2", "3", "5", "8"]
+        elif zon == "ZON AKTIF":
+            item_dikecualikan = ["1", "5", "6", "7", "8"]
+    elif "KOMPONEN D" in komponen_upper:
+        if zon == "ZON EFFEKTIF":
+            item_dikecualikan = ["3", "4", "5"]
+        elif zon == "ZON KOMITED":
+            item_dikecualikan = ["1", "2", "3", "5", "6"]
+        elif zon == "ZON SEPAKAT":
+            item_dikecualikan = ["1", "5", "6"]
+        elif zon == "ZON AKTIF":
+            item_dikecualikan = ["1", "2", "3", "4", "6"]
+            
+    items_asal = data_eksa.get(komponen, [])
+    filtered_items = []
+    for item in items_asal:
+        # Ambil nombor sahaja dari item['No'] (untuk menangani format seperti 'B12' atau '12')
+        num_only = ''.join(filter(str.isdigit, str(item['No'])))
+        if num_only not in item_dikecualikan:
+            filtered_items.append(item)
+            
+    return filtered_items
+
+def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
     total_penuh_semua = 0
@@ -212,7 +256,9 @@ def kira_prestasi(data_individu, filter_komp="Semua Komponen"):
     for komp in komponen_dipilih:
         rekod_komponen = data_individu.get(komp, {})
         jumlah_markah = sum([val['Markah'] for val in rekod_komponen.values() if isinstance(val, dict)]) if rekod_komponen else 0
-        jumlah_item = len(data_eksa[komp])
+        
+        # Guna senarai item yang ditapis untuk mendapatkan jumlah item / markah penuh sebenar
+        jumlah_item = len(dapatkan_item_tapis(komp, zon))
         markah_penuh = jumlah_item * 5
         
         peratusan = (jumlah_markah / markah_penuh) * 100 if markah_penuh > 0 else 0
@@ -241,7 +287,7 @@ st.sidebar.header("Navigasi Sistem")
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
     "📋 Modul Kerja (Borang)", 
     "📊 Markah Audit", 
-    "📈 Rumusan Markah Terperinci", # MENU BARU DITAMBAH DI SINI
+    "📈 Rumusan Markah Terperinci",
     "🖨️ Laporan Penuh & Cetakan",
     
 ])
@@ -259,7 +305,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
     with col_info1:
         komponen_pilihan = st.selectbox("1. Pilih Komponen:", list(data_eksa.keys()))
     with col_info2:
-        # LOGIK BAHARU: Tukar pilihan zon kepada Zon Induk jika Komponen A atau E dipilih
         komponen_upper = str(komponen_pilihan).upper()
         if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
             pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
@@ -291,100 +336,104 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         st.subheader(f"Menilai: {komponen_pilihan}")
         st.caption(f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}")
         
-        items = data_eksa[komponen_pilihan]
+        # MENGGUNAKAN ITEM YANG TELAH DITAPIS MENGIKUT ZON
+        items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
         
         if komponen_pilihan not in data_semasa:
             data_semasa[komponen_pilihan] = {}
 
-        with st.form(key=f"form_{komponen_pilihan}"):
-            current_displayed_subtopic = ""
-            
-            for item in items:
-                if item['Subtopik'] != current_displayed_subtopic:
-                    st.markdown(f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>", unsafe_allow_html=True)
-                    current_displayed_subtopic = item['Subtopik']
+        if not items:
+            st.info("Tiada item untuk dinilai bagi komponen dan zon yang dipilih berdasarkan kriteria pengecualian.")
+        else:
+            with st.form(key=f"form_{komponen_pilihan}"):
+                current_displayed_subtopic = ""
                 
-                st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
-                
-                with st.expander(f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"):
-                    for skor, deskripsi in item['Rubrik'].items():
-                        if deskripsi and deskripsi != 'nan':
-                            st.write(f"**Skor {skor}:** {deskripsi}")
-                
-                rekod_lama = data_semasa[komponen_pilihan].get(item['No'], {
-                    'Markah': 3, 'Ulasan': '', 'Gambar': None, 
-                    'Ulasan_Susulan': '', 'Gambar_Susulan': None, 'Tarikh_Susulan': datetime.date.today()
-                })
-                
-                col1, col2, col3 = st.columns([1, 1.5, 1.5])
-                with col1:
-                    markah = st.radio("Markah", options=[1, 2, 3, 4, 5], 
-                                      index=[1, 2, 3, 4, 5].index(rekod_lama['Markah']), 
-                                      horizontal=True, key=f"mark_{komponen_pilihan}_{item['No']}")
-                with col2:
-                    ulasan = st.text_input("Ulasan/Komen Asal", value=rekod_lama['Ulasan'], 
-                                           key=f"ulasan_{komponen_pilihan}_{item['No']}")
-                with col3:
-                    gambar_muat_naik = st.file_uploader("Muat Naik Bukti (Sebelum)", type=['png', 'jpg', 'jpeg'], 
-                                                        key=f"gambar_{komponen_pilihan}_{item['No']}")
-                    gambar_disimpan = rekod_lama['Gambar']
+                for item in items:
+                    if item['Subtopik'] != current_displayed_subtopic:
+                        st.markdown(f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>", unsafe_allow_html=True)
+                        current_displayed_subtopic = item['Subtopik']
                     
-                    if gambar_muat_naik is not None:
-                        gambar_disimpan = gambar_ke_base64(gambar_muat_naik)
+                    st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
+                    
+                    with st.expander(f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"):
+                        for skor, deskripsi in item['Rubrik'].items():
+                            if deskripsi and deskripsi != 'nan':
+                                st.write(f"**Skor {skor}:** {deskripsi}")
+                    
+                    rekod_lama = data_semasa[komponen_pilihan].get(item['No'], {
+                        'Markah': 3, 'Ulasan': '', 'Gambar': None, 
+                        'Ulasan_Susulan': '', 'Gambar_Susulan': None, 'Tarikh_Susulan': datetime.date.today()
+                    })
+                    
+                    col1, col2, col3 = st.columns([1, 1.5, 1.5])
+                    with col1:
+                        markah = st.radio("Markah", options=[1, 2, 3, 4, 5], 
+                                          index=[1, 2, 3, 4, 5].index(rekod_lama['Markah']), 
+                                          horizontal=True, key=f"mark_{komponen_pilihan}_{item['No']}")
+                    with col2:
+                        ulasan = st.text_input("Ulasan/Komen Asal", value=rekod_lama['Ulasan'], 
+                                               key=f"ulasan_{komponen_pilihan}_{item['No']}")
+                    with col3:
+                        gambar_muat_naik = st.file_uploader("Muat Naik Bukti (Sebelum)", type=['png', 'jpg', 'jpeg'], 
+                                                            key=f"gambar_{komponen_pilihan}_{item['No']}")
+                        gambar_disimpan = rekod_lama['Gambar']
+                        
+                        if gambar_muat_naik is not None:
+                            gambar_disimpan = gambar_ke_base64(gambar_muat_naik)
 
-                    if gambar_disimpan:
-                        st.image(gambar_disimpan, width=120, caption="Gambar dimuat naik")
+                        if gambar_disimpan:
+                            st.image(gambar_disimpan, width=120, caption="Gambar dimuat naik")
+                    
+                    data_semasa[komponen_pilihan][item['No']] = {
+                        'Markah': markah, 
+                        'Ulasan': ulasan,
+                        'Gambar': gambar_disimpan,
+                        'Ulasan_Susulan': rekod_lama['Ulasan_Susulan'],
+                        'Gambar_Susulan': rekod_lama['Gambar_Susulan'],
+                        'Tarikh_Susulan': rekod_lama.get('Tarikh_Susulan', datetime.date.today())
+                    }
+                    st.markdown("---")
+                    
+                hantar = st.form_submit_button("Simpan Markah & Gambar")
                 
-                data_semasa[komponen_pilihan][item['No']] = {
-                    'Markah': markah, 
-                    'Ulasan': ulasan,
-                    'Gambar': gambar_disimpan,
-                    'Ulasan_Susulan': rekod_lama['Ulasan_Susulan'],
-                    'Gambar_Susulan': rekod_lama['Gambar_Susulan'],
-                    'Tarikh_Susulan': rekod_lama.get('Tarikh_Susulan', datetime.date.today())
-                }
-                st.markdown("---")
-                
-            hantar = st.form_submit_button("Simpan Markah & Gambar")
-            
-            if hantar:
-                st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
-                
-                if conn is not None:
-                    try:
-                        baris_baru = []
-                        tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
-                        
-                        for no_i, d_item in data_semasa[komponen_pilihan].items():
-                            padanan = [orig for orig in data_eksa.get(komponen_pilihan, []) if str(orig['No']).strip() == str(no_i).strip()]
-                            subtopik_val = padanan[0]['Subtopik'] if padanan else "KRITERIA UMUM"
-                            
-                            baris_baru.append({
-                                'Tarikh': tarikh_sekarang,
-                                'Zon': zon_audit,
-                                'Lokasi': lokasi_khusus,
-                                'Juruaudit': nama_juruaudit,
-                                'Komponen': komponen_pilihan,
-                                'Subtopik': subtopik_val,
-                                'No_Item': str(no_i),
-                                'Markah': d_item['Markah'],
-                                'Ulasan': d_item['Ulasan'],
-                                'Gambar_Base64': d_item['Gambar'] if d_item['Gambar'] else ''
-                            })
-                        
-                        df_baru = pd.DataFrame(baris_baru)
+                if hantar:
+                    st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
+                    
+                    if conn is not None:
                         try:
-                            df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-                            df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
-                        except Exception:
-                            df_gabung = df_baru
+                            baris_baru = []
+                            tarikh_sekarang = datetime.date.today().strftime('%Y-%m-%d')
                             
-                        conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
-                        st.success("✅ Data dan gambar berjaya disimpan secara KEKAL ke Google Sheets!")
-                    except Exception as err:
-                        st.error(f"Gagal berhubung ke Google Sheets: {err}")
-                else:
-                    st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
+                            for no_i, d_item in data_semasa[komponen_pilihan].items():
+                                padanan = [orig for orig in data_eksa.get(komponen_pilihan, []) if str(orig['No']).strip() == str(no_i).strip()]
+                                subtopik_val = padanan[0]['Subtopik'] if padanan else "KRITERIA UMUM"
+                                
+                                baris_baru.append({
+                                    'Tarikh': tarikh_sekarang,
+                                    'Zon': zon_audit,
+                                    'Lokasi': lokasi_khusus,
+                                    'Juruaudit': nama_juruaudit,
+                                    'Komponen': komponen_pilihan,
+                                    'Subtopik': subtopik_val,
+                                    'No_Item': str(no_i),
+                                    'Markah': d_item['Markah'],
+                                    'Ulasan': d_item['Ulasan'],
+                                    'Gambar_Base64': d_item['Gambar'] if d_item['Gambar'] else ''
+                                })
+                            
+                            df_baru = pd.DataFrame(baris_baru)
+                            try:
+                                df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+                                df_gabung = pd.concat([df_lama, df_baru], ignore_index=True)
+                            except Exception:
+                                df_gabung = df_baru
+                                
+                            conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
+                            st.success("✅ Data dan gambar berjaya disimpan secara KEKAL ke Google Sheets!")
+                        except Exception as err:
+                            st.error(f"Gagal berhubung ke Google Sheets: {err}")
+                    else:
+                        st.warning("Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi.")
     else:
         st.warning("Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian.")
 
@@ -434,7 +483,8 @@ elif menu_paparan == "📊 Markah Audit":
             auditor_sasaran = list(dict_zon.keys()) if pilih_auditor == "Semua Juruaudit" else ([pilih_auditor] if pilih_auditor in dict_zon else [])
             
             for nm_auditor in auditor_sasaran:
-                ringkasan, jum_markah, jum_penuh, peratus = kira_prestasi(dict_zon[nm_auditor], pilih_komponen)
+                # KIRA PRESTASI KINI MENGHANTAR `zon` UNTUK PENAPISAN MARKAH PENUH
+                ringkasan, jum_markah, jum_penuh, peratus = kira_prestasi(dict_zon[nm_auditor], zon, pilih_komponen)
                 lok_khusus = dict_zon[nm_auditor].get('_lokasi_khusus', 'Biasa')
                 if jum_penuh > 0:
                     data_graf.append({
@@ -547,7 +597,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                     conn.update(spreadsheet=URL_GSHEETS, data=df_g)
                                                 except Exception:
                                                     pass
-                                                
+                                            
                                             st.success("✅ Rekod berjaya dikemas kini!")
                                             st.rerun()
 
@@ -563,7 +613,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                 conn.update(spreadsheet=URL_GSHEETS, data=df_filtered)
                                             except Exception:
                                                 pass
-                                            
+                                        
                                         st.warning("🗑️ Rekod telah dipadam.")
                                         st.rerun()
 
@@ -662,6 +712,7 @@ elif menu_paparan == "📊 Markah Audit":
 
         if not ada_kelemahan:
             st.success("Tahniah! Tiada item dengan markah rendah (1 atau 2) yang memerlukan tindakan susulan bagi tetapan yang dipilih.")
+
 # ==========================================
 # PAPARAN 3: RUMUSAN MARKAH TERPERINCI (BARU)
 # ==========================================
@@ -672,7 +723,6 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     
     pilih_komp = st.selectbox("Sila Pilih Komponen:", list(data_eksa.keys()))
     
-    # LOGIK BAHARU: Tentukan senarai zon berdasarkan komponen
     komponen_upper = str(pilih_komp).upper()
     if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
         zon_rasmi_list = ["ZON INDUK"]
@@ -681,11 +731,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     
     st.markdown("---")
     
-    # Bina pengepala (header) HTML secara dinamik untuk jadual
     colspan_markah = len(zon_rasmi_list)
     header_zon_html = ""
     for z in zon_rasmi_list:
-        # Menukar "ZON EFFEKTIF" kepada "ZON<br>EFFEKTIF" untuk paparan 2 baris
         nama_zon_br = z.replace("ZON ", "ZON<br>")
         header_zon_html += f'<th class="markah-column">{nama_zon_br}</th>\n'
     
@@ -748,24 +796,29 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     
     for item in data_eksa[pilih_komp]:
         if item['Subtopik'] != current_sub:
-            # colspan 7 (item + perkara + 5 rubrik) + bilangan zon
             total_colspan = 7 + colspan_markah
             html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='{total_colspan}'>{item['Subtopik']}</td></tr>"
             current_sub = item['Subtopik']
             
         skor_dicatat = {}
         for z in zon_rasmi_list:
-            skor_semasa = ""
-            if z in st.session_state.pangkalan_data:
-                for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
-                    if pilih_komp in data_auditor and item['No'] in data_auditor[pilih_komp]:
-                        skor_val = data_auditor[pilih_komp][item['No']]['Markah']
-                        skor_semasa = skor_val
-                        jumlah_skor_zon[z] += skor_val
-                        break
-            skor_dicatat[z] = skor_semasa
+            # SEMAK JIKA ITEM INI DIKECUALIKAN UNTUK ZON BERKENAAN
+            item_sebenar_zon = dapatkan_item_tapis(pilih_komp, z)
+            item_nums_zon = [str(x['No']) for x in item_sebenar_zon]
             
-        # Bina baris markah secara dinamik mengikut zon yang ada
+            if str(item['No']) not in item_nums_zon:
+                skor_dicatat[z] = "N/A"
+            else:
+                skor_semasa = ""
+                if z in st.session_state.pangkalan_data:
+                    for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
+                        if pilih_komp in data_auditor and item['No'] in data_auditor[pilih_komp]:
+                            skor_val = data_auditor[pilih_komp][item['No']]['Markah']
+                            skor_semasa = skor_val
+                            jumlah_skor_zon[z] += skor_val
+                            break
+                skor_dicatat[z] = skor_semasa
+            
         kolum_markah_html = ""
         for z in zon_rasmi_list:
             kolum_markah_html += f'<td class="center-text"><b>{skor_dicatat[z]}</b></td>\n'
@@ -781,7 +834,6 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 {kolum_markah_html}
 </tr>"""
         
-    # Bina baris jumlah (footer) secara dinamik
     kolum_jumlah_html = ""
     for z in zon_rasmi_list:
         kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon[z]}</td>\n'
@@ -794,6 +846,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     html_jadual_rumusan += "</tbody></table></div>"
     
     st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
+
 # ==========================================
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
@@ -816,18 +869,15 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     with col_i2:
         tarikh_audit_cetak = st.date_input("Tarikh Audit:", datetime.date.today())
     
-    # SENARAI ZON DIKEMAS KINI (DITAMBAH ZON INDUK)
     zon_rasmi_list = ["ZON INDUK", "ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
     def kumpul_markah_zon(zon_nama, komp_nama):
         komp_upper = str(komp_nama).upper()
         is_komp_a_or_e = "KOMPONEN A" in komp_upper or "KOMPONEN E" in komp_upper
         
-        # LOGIK BAHARU: Komponen A & E HANYA untuk Zon Induk
         if zon_nama == "ZON INDUK" and not is_komp_a_or_e:
             return 0, 0
             
-        # LOGIK BAHARU: Komponen B, C, D HANYA untuk Zon selain Induk
         if zon_nama != "ZON INDUK" and is_komp_a_or_e:
             return 0, 0
 
@@ -840,11 +890,11 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                         if isinstance(d_item, dict) and 'Markah' in d_item:
                             total_m += d_item['Markah']
         
-        total_p = len(data_eksa.get(komp_nama, [])) * 5
+        # MENGGUNAKAN ITEM DITAPIS UNTUK TOTAL MARKAH PENUH
+        total_p = len(dapatkan_item_tapis(komp_nama, zon_nama)) * 5
         return total_m, total_p
 
     html_kandungan = ""
-    # Tambahan CSS untuk Header Zon Induk
     css_tambahan = """
     <style>
     .header-induk { background-color: #e9d5ff !important; color: #000000 !important; }
@@ -1070,7 +1120,3 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     ) 
     st.markdown("---")
     st.markdown(f"<div class='jadual-laporan-wrapper'>{html_kandungan}</div>", unsafe_allow_html=True)
-
-
-
-
