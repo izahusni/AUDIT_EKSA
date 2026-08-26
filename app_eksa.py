@@ -259,8 +259,15 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
     with col_info1:
         komponen_pilihan = st.selectbox("1. Pilih Komponen:", list(data_eksa.keys()))
     with col_info2:
-        pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
+        # LOGIK BAHARU: Tukar pilihan zon kepada Zon Induk jika Komponen A atau E dipilih
+        komponen_upper = str(komponen_pilihan).upper()
+        if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
+            pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
+        else:
+            pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
+            
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
+        
         if lokasi_audit_sel == "ZON LAIN-LAIN...":
             zon_audit = st.text_input("Nama Zon Manual:").strip().upper()
         else:
