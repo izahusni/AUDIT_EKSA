@@ -210,7 +210,7 @@ def dapatkan_item_tapis(komponen, zon):
     
     # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF)
     if "KOMPONEN B" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]
