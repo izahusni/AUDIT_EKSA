@@ -816,11 +816,22 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     with col_i2:
         tarikh_audit_cetak = st.date_input("Tarikh Audit:", datetime.date.today())
     
-    zon_rasmi_list = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
+    # SENARAI ZON DIKEMAS KINI (DITAMBAH ZON INDUK)
+    zon_rasmi_list = ["ZON INDUK", "ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
     def kumpul_markah_zon(zon_nama, komp_nama):
+        komp_upper = str(komp_nama).upper()
+        is_komp_a_or_e = "KOMPONEN A" in komp_upper or "KOMPONEN E" in komp_upper
+        
+        # LOGIK BAHARU: Komponen A & E HANYA untuk Zon Induk
+        if zon_nama == "ZON INDUK" and not is_komp_a_or_e:
+            return 0, 0
+            
+        # LOGIK BAHARU: Komponen B, C, D HANYA untuk Zon selain Induk
+        if zon_nama != "ZON INDUK" and is_komp_a_or_e:
+            return 0, 0
+
         total_m = 0
-        total_p = 0
         if zon_nama in st.session_state.pangkalan_data:
             dict_zon = st.session_state.pangkalan_data[zon_nama]
             for nm_aud, data_aud in dict_zon.items():
@@ -833,6 +844,13 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         return total_m, total_p
 
     html_kandungan = ""
+    # Tambahan CSS untuk Header Zon Induk
+    css_tambahan = """
+    <style>
+    .header-induk { background-color: #e9d5ff !important; color: #000000 !important; }
+    </style>
+    """
+    st.markdown(css_tambahan, unsafe_allow_html=True)
 
     if pilihan_jenis_cetakan == "1. Markah Audit (Format Ringkas)":
         html_kandungan = f"""
@@ -844,16 +862,17 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 <tr>
                     <th class="header-kelabu" style="width: 5%;">BIL.</th>
                     <th class="header-kelabu" style="width: 40%;">KOMPONEN</th>
-                    <th class="header-effektif" style="width: 13%;">% MARKAH<br>ZON EFFEKTIF</th>
-                    <th class="header-komited" style="width: 13%;">% MARKAH<br>ZON KOMITED</th>
-                    <th class="header-sepakat" style="width: 13%;">% MARKAH<br>ZON SEPAKAT</th>
-                    <th class="header-aktif" style="width: 13%;">% MARKAH<br>ZON AKTIF</th>
+                    <th class="header-induk" style="width: 11%;">% MARKAH<br>ZON INDUK</th>
+                    <th class="header-effektif" style="width: 11%;">% MARKAH<br>ZON EFFEKTIF</th>
+                    <th class="header-komited" style="width: 11%;">% MARKAH<br>ZON KOMITED</th>
+                    <th class="header-sepakat" style="width: 11%;">% MARKAH<br>ZON SEPAKAT</th>
+                    <th class="header-aktif" style="width: 11%;">% MARKAH<br>ZON AKTIF</th>
                 </tr>
             </thead>
             <tbody>
         """
-        senarai_komp_keys = ['KOMPONEN A', 'KOMPONEN B', 'KOMPONEN C', 'KOMPONEN D']
-        kod_huruf = ['A.', 'B.', 'C.', 'D.']
+        senarai_komp_keys = ['KOMPONEN A', 'KOMPONEN B', 'KOMPONEN C', 'KOMPONEN D', 'KOMPONEN E']
+        kod_huruf = ['A.', 'B.', 'C.', 'D.', 'E.']
         zon_total_m = {z: 0 for z in zon_rasmi_list}
         zon_total_p = {z: 0 for z in zon_rasmi_list}
         
@@ -863,23 +882,30 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             tajuk_bersih = nam_komp_full.replace("KOMPONEN A", "KEPERLUAN UTAMA PELAKSANAAN")\
                                        .replace("KOMPONEN B", "RUANG TEMPAT KERJA / PEJABAT")\
                                        .replace("KOMPONEN C", "TEMPAT UMUM")\
-                                       .replace("KOMPONEN D", "BILIK PEMBELAJARAN & PENGAJARAN")
+                                       .replace("KOMPONEN D", "BILIK PEMBELAJARAN & PENGAJARAN")\
+                                       .replace("KOMPONEN E", "KESELAMATAN PERSEKITARAN")
             
             html_kandungan += f"<tr><td><b>{kod_huruf[idx]}</b></td><td style='text-align: left;'><b>{tajuk_bersih}</b></td>"
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 zon_total_m[z_nam] += m_dapat
                 zon_total_p[z_nam] += m_penuh
-                pct = (m_dapat / m_penuh * 100) if m_penuh > 0 else 0.0
-                html_kandungan += f"<td><b>{pct:.2f}%</b></td>"
+                if m_penuh > 0:
+                    pct = (m_dapat / m_penuh) * 100
+                    html_kandungan += f"<td><b>{pct:.2f}%</b></td>"
+                else:
+                    html_kandungan += f"<td><span style='color:#aaaaaa'>-</span></td>"
             html_kandungan += "</tr>"
             
         html_kandungan += "<tr><td colspan='2' class='header-kelabu'><b>PERATUS MARKAH ZON</b></td>"
         grand_m = 0
         grand_p = 0
         for z_nam in zon_rasmi_list:
-            z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam] * 100) if zon_total_p[z_nam] > 0 else 0.0
-            html_kandungan += f"<td><b>{z_pct:.2f}%</b></td>"
+            if zon_total_p[z_nam] > 0:
+                z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
+                html_kandungan += f"<td><b>{z_pct:.2f}%</b></td>"
+            else:
+                html_kandungan += f"<td><b>-</b></td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
         html_kandungan += "</tr>"
@@ -888,7 +914,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         html_kandungan += f"""
             <tr>
                 <td colspan='2' class='header-kelabu'><b>PERATUS MARKAH KESELURUHAN</b></td>
-                <td colspan='4' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
+                <td colspan='5' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
             </tr>
             </tbody>
         </table>
@@ -904,20 +930,23 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             <thead>
                 <tr>
                     <th rowspan="2" class="header-kelabu" style="width: 4%;">BIL.</th>
-                    <th rowspan="2" class="header-kelabu" style="width: 28%;">KOMPONEN</th>
+                    <th rowspan="2" class="header-kelabu" style="width: 26%;">KOMPONEN</th>
+                    <th colspan="2" class="header-induk">ZON INDUK</th>
                     <th colspan="2" class="header-effektif">ZON EFFEKTIF</th>
                     <th colspan="2" class="header-komited">ZON KOMITED</th>
                     <th colspan="2" class="header-sepakat">ZON SEPAKAT</th>
                     <th colspan="2" class="header-aktif">ZON AKTIF</th>
                 </tr>
                 <tr>
-                    <th class="header-effektif">MARKAH PENUH</th>
+                    <th class="header-induk">PENUH</th>
+                    <th class="header-induk">MARKAH</th>
+                    <th class="header-effektif">PENUH</th>
                     <th class="header-effektif">MARKAH</th>
-                    <th class="header-komited">MARKAH PENUH</th>
+                    <th class="header-komited">PENUH</th>
                     <th class="header-komited">MARKAH</th>
-                    <th class="header-sepakat">MARKAH PENUH</th>
+                    <th class="header-sepakat">PENUH</th>
                     <th class="header-sepakat">MARKAH</th>
-                    <th class="header-aktif">MARKAH PENUH</th>
+                    <th class="header-aktif">PENUH</th>
                     <th class="header-aktif">MARKAH</th>
                 </tr>
             </thead>
@@ -942,30 +971,37 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 zon_total_m[z_nam] += m_dapat
                 zon_total_p[z_nam] += m_penuh
-                txt_m = str(m_dapat) if m_dapat > 0 else ""
-                html_kandungan += f"<td>{m_penuh}</td><td><b>{txt_m}</b></td>"
+                
+                txt_p = str(m_penuh) if m_penuh > 0 else "<span style='color:#aaaaaa'>-</span>"
+                txt_m = f"<b>{m_dapat}</b>" if m_penuh > 0 else "<span style='color:#aaaaaa'>-</span>"
+                html_kandungan += f"<td>{txt_p}</td><td>{txt_m}</td>"
             html_kandungan += "</tr>"
             
         html_kandungan += "<tr><td colspan='2' class='header-kelabu'><b>JUMLAH MARKAH</b></td>"
         grand_m = 0
         grand_p = 0
         for z_nam in zon_rasmi_list:
-            html_kandungan += f"<td><b>{zon_total_p[z_nam]}</b></td><td><b>{zon_total_m[z_nam]}</b></td>"
+            txt_jp = f"<b>{zon_total_p[z_nam]}</b>" if zon_total_p[z_nam] > 0 else "-"
+            txt_jm = f"<b>{zon_total_m[z_nam]}</b>" if zon_total_p[z_nam] > 0 else "-"
+            html_kandungan += f"<td>{txt_jp}</td><td>{txt_jm}</td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
         html_kandungan += "</tr>"
         
         html_kandungan += "<tr><td colspan='2' class='header-kelabu'><b>PERATUS MARKAH ZON</b></td>"
         for z_nam in zon_rasmi_list:
-            z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam] * 100) if zon_total_p[z_nam] > 0 else 0.0
-            html_kandungan += f"<td colspan='2'><b>{z_pct:.2f}%</b></td>"
+            if zon_total_p[z_nam] > 0:
+                z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
+                html_kandungan += f"<td colspan='2'><b>{z_pct:.2f}%</b></td>"
+            else:
+                html_kandungan += f"<td colspan='2'><b>-</b></td>"
         html_kandungan += "</tr>"
         
         grand_pct = (grand_m / grand_p * 100) if grand_p > 0 else 0.0
         html_kandungan += f"""
             <tr>
                 <td colspan='2' class='header-kelabu'><b>PERATUS MARKAH KESELURUHAN</b></td>
-                <td colspan='8' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
+                <td colspan='10' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
             </tr>
             </tbody>
         </table>
@@ -997,6 +1033,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             mywindow.document.write('body {{ background-color: #ffffff !important; color: #000000 !important; font-family: Arial, sans-serif; padding: 20px; }}');
             mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; text-align: center; margin-top: 10px; background-color: #ffffff !important; color: #000000 !important; }}');
             mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000000 !important; padding: 6px 8px; color: #000000 !important; background-color: #ffffff; }}');
+            mywindow.document.write('.header-induk {{ background-color: #e9d5ff !important; color: #000000 !important; }}');
             mywindow.document.write('.header-effektif {{ background-color: #fef3c7 !important; color: #000000 !important; }}');
             mywindow.document.write('.header-komited {{ background-color: #bfdbfe !important; color: #000000 !important; }}');
             mywindow.document.write('.header-sepakat {{ background-color: #fca5a5 !important; color: #000000 !important; }}');
