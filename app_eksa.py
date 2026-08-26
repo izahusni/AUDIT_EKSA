@@ -208,9 +208,9 @@ def dapatkan_item_tapis(komponen, zon):
     zon_upper = str(zon).upper()
     item_dikecualikan = []
     
-    # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF)
+    # Logik pengecualian mengikut zon
     if "KOMPONEN B" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]
@@ -220,7 +220,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["11", "13", "14", "15", "16"]
             
     elif "KOMPONEN C" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["5", "6", "7", "8"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "6", "7"]
@@ -230,7 +230,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["1", "5", "6", "7", "8"]
             
     elif "KOMPONEN D" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "5", "6"]
@@ -241,8 +241,9 @@ def dapatkan_item_tapis(komponen, zon):
             
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
+    
     for item in items_asal:
-        # Ambil nombor sahaja dari item['No'] untuk penapisan tepat
+        # Ambil nombor sahaja dari item['No'] untuk penapisan tepat (contoh: 'B12' -> '12')
         num_only = ''.join(filter(str.isdigit, str(item['No'])))
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
