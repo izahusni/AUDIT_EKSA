@@ -671,12 +671,24 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi (rujukan imej).")
     
     pilih_komp = st.selectbox("Sila Pilih Komponen:", list(data_eksa.keys()))
-    zon_rasmi_list = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
+    
+    # LOGIK BAHARU: Tentukan senarai zon berdasarkan komponen
+    komponen_upper = str(pilih_komp).upper()
+    if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
+        zon_rasmi_list = ["ZON INDUK"]
+    else:
+        zon_rasmi_list = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF"]
     
     st.markdown("---")
     
-    # PENTING: Tiada jarak/indentation diletakkan di permulaan tag HTML 
-    # untuk mengelakkan Streamlit menjadikannya sebagai Code Block.
+    # Bina pengepala (header) HTML secara dinamik untuk jadual
+    colspan_markah = len(zon_rasmi_list)
+    header_zon_html = ""
+    for z in zon_rasmi_list:
+        # Menukar "ZON EFFEKTIF" kepada "ZON<br>EFFEKTIF" untuk paparan 2 baris
+        nama_zon_br = z.replace("ZON ", "ZON<br>")
+        header_zon_html += f'<th class="markah-column">{nama_zon_br}</th>\n'
+    
     html_jadual_rumusan = f"""<style>
 .tabel-rumusan {{ 
     width: 100%; 
@@ -706,7 +718,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     text-align: center; 
 }}
 .markah-column {{
-    width: 4%;
+    width: 6%;
     text-align: center;
 }}
 </style>
@@ -716,7 +728,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 <thead>
 <tr>
 <th colspan="7" style="font-size: 16px;">{pilih_komp.upper()}</th>
-<th colspan="4" style="font-size: 14px;">MARKAH</th>
+<th colspan="{colspan_markah}" style="font-size: 14px;">MARKAH</th>
 </tr>
 <tr>
 <th colspan="2" style="width: 25%;">KEPERLUAN UTAMA PELAKSANAAN</th>
@@ -725,10 +737,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 <th style="width: 11%;">3</th>
 <th style="width: 11%;">4</th>
 <th style="width: 11%;">5</th>
-<th class="markah-column">ZON<br>EFFEKTIF</th>
-<th class="markah-column">ZON<br>KOMITED</th>
-<th class="markah-column">ZON<br>SEPAKAT</th>
-<th class="markah-column">ZON<br>AKTIF</th>
+{header_zon_html}
 </tr>
 </thead>
 <tbody>
@@ -739,7 +748,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     
     for item in data_eksa[pilih_komp]:
         if item['Subtopik'] != current_sub:
-            html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='11'>{item['Subtopik']}</td></tr>"
+            # colspan 7 (item + perkara + 5 rubrik) + bilangan zon
+            total_colspan = 7 + colspan_markah
+            html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='{total_colspan}'>{item['Subtopik']}</td></tr>"
             current_sub = item['Subtopik']
             
         skor_dicatat = {}
@@ -754,6 +765,11 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                         break
             skor_dicatat[z] = skor_semasa
             
+        # Bina baris markah secara dinamik mengikut zon yang ada
+        kolum_markah_html = ""
+        for z in zon_rasmi_list:
+            kolum_markah_html += f'<td class="center-text"><b>{skor_dicatat[z]}</b></td>\n'
+            
         html_jadual_rumusan += f"""<tr>
 <td class="center-text"><b>{item['No']}</b></td>
 <td>{item['Perkara']}</td>
@@ -762,18 +778,17 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 <td>{item['Rubrik'].get(3, '')}</td>
 <td>{item['Rubrik'].get(4, '')}</td>
 <td>{item['Rubrik'].get(5, '')}</td>
-<td class="center-text"><b>{skor_dicatat['ZON EFFEKTIF']}</b></td>
-<td class="center-text"><b>{skor_dicatat['ZON KOMITED']}</b></td>
-<td class="center-text"><b>{skor_dicatat['ZON SEPAKAT']}</b></td>
-<td class="center-text"><b>{skor_dicatat['ZON AKTIF']}</b></td>
+{kolum_markah_html}
 </tr>"""
+        
+    # Bina baris jumlah (footer) secara dinamik
+    kolum_jumlah_html = ""
+    for z in zon_rasmi_list:
+        kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon[z]}</td>\n'
         
     html_jadual_rumusan += f"""<tr>
 <td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px;">JUMLAH</td>
-<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON EFFEKTIF']}</td>
-<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON KOMITED']}</td>
-<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON SEPAKAT']}</td>
-<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon['ZON AKTIF']}</td>
+{kolum_jumlah_html}
 </tr>"""
     
     html_jadual_rumusan += "</tbody></table></div>"
