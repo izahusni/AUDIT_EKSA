@@ -312,8 +312,15 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
     with col_info1:
         komponen_pilihan = st.selectbox("1. Pilih Komponen:", list(data_eksa.keys()))
     with col_info2:
-        pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
+        komponen_upper = str(komponen_pilihan).upper()
+        if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
+            pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
+        else:
+            # Tetap guna ejaan rasmi di dropdown untuk keseragaman database
+            pilihan_zon_rasmi = ["ZON EFFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
+            
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
+        
         if lokasi_audit_sel == "ZON LAIN-LAIN...":
             zon_audit = st.text_input("Nama Zon Manual:").strip().upper()
         else:
@@ -341,6 +348,9 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         
         if komponen_pilihan not in data_semasa:
             data_semasa[komponen_pilihan] = {}
+            if not items:
+            st.info("Tiada item untuk dinilai bagi komponen dan zon yang dipilih berdasarkan kriteria pengecualian.")
+        else:
 
         with st.form(key=f"form_{komponen_pilihan}"):
             current_displayed_subtopic = ""
