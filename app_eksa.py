@@ -263,21 +263,46 @@ menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
 ])
 
 import base64
+from io import BytesIO
+from PIL import Image
 
-# --- FUNGSI TUKAR IMEJ KE BASE64 ---
-def imej_ke_base64(fail_gambar):
+# --- FUNGSI MAMPATAN & TUKAR IMEJ KE BASE64 ---
+def imej_ke_base64(fail_gambar, max_size=(600, 600), quality=50):
     if fail_gambar is None:
         return ""
     try:
-        # Jika fail sudah berbentuk string Base64
         if isinstance(fail_gambar, str):
             return fail_gambar
-        bytes_data = fail_gambar.getvalue()
-        base64_str = base64.b64encode(bytes_data).decode('utf-8')
-        ext = fail_gambar.name.split('.')[-1].lower()
-        if ext == 'jpg': ext = 'jpeg'
-        return f"data:image/{ext};base64,{base64_str}"
-    except Exception:
+            
+        # Buka imej
+        img = Image.open(fail_gambar)
+        
+        # Penukaran mod jika imej adalah PNG/RGBA
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+            
+        # Kecilkan dimensi gambar (Resize)
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+        # Simpan ke memori buffer dengan kualiti rendah/sederhana
+        buffer = BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+        
+        # Tukar ke Base64
+        base64_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        data_uri = f"data:image/jpeg;base64,{base64_str}"
+        
+        # Semak jika masih melepasi had Google Sheets (50,000 aksara)
+        if len(data_uri) > 49000:
+            # Mampat kali kedua jika masih terlalu besar
+            buffer = BytesIO()
+            img.save(buffer, format="JPEG", quality=30, optimize=True)
+            base64_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            data_uri = f"data:image/jpeg;base64,{base64_str}"
+            
+        return data_uri
+    except Exception as e:
+        st.warning(f"Gagal memproses gambar: {e}")
         return ""
 
 # ==========================================
