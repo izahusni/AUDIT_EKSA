@@ -129,7 +129,7 @@ st.markdown("""
         font-weight: bold;
         color: #000000 !important;
     }
-    .header-effektif { background-color: #fef3c7 !important; color: #000000 !important; }
+    .header-efektif { background-color: #fef3c7 !important; color: #000000 !important; }
     .header-komited { background-color: #bfdbfe !important; color: #000000 !important; }
     .header-sepakat { background-color: #fca5a5 !important; color: #000000 !important; }
     .header-aktif { background-color: #bbf7d0 !important; color: #000000 !important; }
@@ -208,9 +208,9 @@ def dapatkan_item_tapis(komponen, zon):
     zon_upper = str(zon).upper()
     item_dikecualikan = []
     
-    # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF/EFFEKTIF)
+    # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF/EFEKTIF)
     if "KOMPONEN B" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]
