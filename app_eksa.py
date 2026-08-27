@@ -202,53 +202,54 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (DIEMAS KINI & DITAMBAH BAIK) ---
+# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (DIKEMAS KINI MENGIKUT RUBRIK RASMI) ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
     zon_upper = str(zon).upper()
     item_dikecualikan = []
     
-    # Peraturam Pengecualian mengikut Komponen & Zon
+    # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["12", "13", "15"]
+            item_dikecualikan = ["12", "13", "15"]  # B12, B13, B15[cite: 1]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["11", "14", "16"]
+            item_dikecualikan = ["11", "14", "16"]  # B11, B14, B16[cite: 1]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
+            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]  # B11-B16[cite: 1]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["11", "13", "14", "15", "16"]
+            item_dikecualikan = ["11", "13", "14", "15", "16"]  # B11, B13, B14, B15, B16 (B12 dikekalkan)[cite: 1]
             
+    # KOMPONEN C: Tempat Umum[cite: 1]
     elif "KOMPONEN C" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["5", "6", "7", "8"]
+            item_dikecualikan = ["5", "6", "7", "8"]  # C5, C6, C7, C8[cite: 1]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "6", "7"]
+            item_dikecualikan = ["1", "6", "7"]  # C1, C6, C7[cite: 1]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "8"]
+            item_dikecualikan = ["1", "2", "3", "5", "8"]  # C1, C2, C3, C5, C8[cite: 1]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "5", "6", "7", "8"]
+            item_dikecualikan = ["1", "5", "6", "7", "8"]  # C1, C5, C6, C7, C8[cite: 1]
             
+    # KOMPONEN D: Bilik Pembelajaran & Pengajaran[cite: 1]
     elif "KOMPONEN D" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["3", "4", "5"]
+            item_dikecualikan = ["3", "4", "5"]  # D3, D4, D5[cite: 1]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "6"]
+            item_dikecualikan = ["1", "2", "3", "5", "6"]  # D1, D2, D3, D5, D6[cite: 1]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "5", "6"]
+            item_dikecualikan = ["1", "5", "6"]  # D1, D5, D6[cite: 1]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "4", "6"]
+            item_dikecualikan = ["1", "2", "3", "4", "6"]  # D1, D2, D3, D4, D6[cite: 1]
 
-    # Komponen A dan E: Jika Zon Induk, kekalkan semua item.
+    # Komponen A dan E: Semua elemen masuk (Tiada pengecualian)[cite: 1]
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
     
     for item in items_asal:
-        # Normalisasi nombor item untuk pemadanan tepat
-        num_str = str(item['No']).strip()
-        num_only = ''.join(filter(str.isdigit, num_str))
+        # Mengambil digit nombor item secara tepat (contoh: "B12" atau "12" -> "12")
+        num_only = ''.join(filter(str.isdigit, str(item['No'])))
         
-        # Hanya masukkan item jika nombornya TIDAK berada dalam senarai dikecualikan
+        # Hanya paparkan item jika TIDAK tersenarai dalam item_dikecualikan
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
             
