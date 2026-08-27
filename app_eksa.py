@@ -353,7 +353,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         st.subheader(f"Menilai: {komponen_pilihan}")
         st.caption(f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}")
         
-        # MENGGUNAKAN ITEM YANG TELAH DITAPIS MENGIKUT ZON
+       # MENGGUNAKAN ITEM YANG TELAH DITAPIS MENGIKUT ZON
         items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
         
         if komponen_pilihan not in data_semasa:
@@ -362,15 +362,20 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         if not items:
             st.info("Tiada item untuk dinilai bagi komponen dan zon yang dipilih berdasarkan kriteria pengecualian.")
         else:
-            with st.form(key=f"form_{komponen_pilihan}"):
+            with st.form(key=f"form_{komponen_pilihan}_{zon_audit}"):
                 current_displayed_subtopic = ""
                 
                 for item in items:
+                    # Double Check: Pastikan item dikecualikan tidak melepasi borang
+                    num_only = ''.join(filter(str.isdigit, str(item['No'])))
+                    
                     if item['Subtopik'] != current_displayed_subtopic:
                         st.markdown(f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>", unsafe_allow_html=True)
                         current_displayed_subtopic = item['Subtopik']
                     
                     st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
+                    
+                    # ... (Kekalkan kod paparan input radio, ulasan & gambar seperti asal)
                     
                     with st.expander(f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"):
                         for skor, deskripsi in item['Rubrik'].items():
