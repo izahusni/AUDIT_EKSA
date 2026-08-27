@@ -8,6 +8,7 @@ import os
 import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
 import base64
+from io import BytesIO
 
 # --- 1. KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="Sistem Audit EKSA", page_icon="📝", layout="wide")
@@ -93,7 +94,7 @@ def gambar_dari_data_url(data_url):
 
 # --- FUNGSI MUAT DATA DARI GOOGLE SHEETS ---
 def senkron_data_dari_gsheets():
-    if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+    if conn and URL_GSHEETS:
         try:
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
             if not df_existing.empty:
@@ -243,7 +244,7 @@ def gambar_ke_data_url(gambar):
     return f'data:{jenis};base64,{encoded}'
 
 
-# --- 4. SIDEBAR LOGO ---
+# --- 4. SIDEBAR LOGO & NAVIGASI ---
 fail_logo = None
 for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jpg']:
     if os.path.exists(nm):
@@ -256,16 +257,14 @@ if fail_logo:
 st.sidebar.title("Sistem Audit EKSA")
 st.sidebar.markdown("---")
 st.sidebar.header("Navigasi Sistem")
+
+# DIBENARKAN: Penambahan menu 'Rumusan Markah Terperinci'
 menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
     "📋 Modul Kerja (Borang)", 
     "📊 Markah Audit", 
     "📈 Rumusan Markah Terperinci",
     "🖨️ Laporan Penuh & Cetakan"
 ])
-
-import base64
-from io import BytesIO
-from PIL import Image
 
 # --- FUNGSI MAMPATAN & TUKAR IMEJ KE BASE64 ---
 def imej_ke_base64(fail_gambar, max_size=(600, 600), quality=50):
@@ -275,27 +274,20 @@ def imej_ke_base64(fail_gambar, max_size=(600, 600), quality=50):
         if isinstance(fail_gambar, str):
             return fail_gambar
             
-        # Buka imej
         img = Image.open(fail_gambar)
         
-        # Penukaran mod jika imej adalah PNG/RGBA
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
             
-        # Kecilkan dimensi gambar (Resize)
         img.thumbnail(max_size, Image.Resampling.LANCZOS)
         
-        # Simpan ke memori buffer dengan kualiti rendah/sederhana
         buffer = BytesIO()
         img.save(buffer, format="JPEG", quality=quality, optimize=True)
         
-        # Tukar ke Base64
         base64_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
         data_uri = f"data:image/jpeg;base64,{base64_str}"
         
-        # Semak jika masih melepasi had Google Sheets (50,000 aksara)
         if len(data_uri) > 49000:
-            # Mampat kali kedua jika masih terlalu besar
             buffer = BytesIO()
             img.save(buffer, format="JPEG", quality=30, optimize=True)
             base64_str = base64.b64encode(buffer.getvalue()).decode('utf-8')
@@ -386,16 +378,13 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         key=f"gambar_{komponen_pilihan}_{item['No']}"
                     )
                     
-                    # Ambil senarai gambar sedia ada
                     gambar_disimpan = senarai_gambar(rekod_lama.get('Gambar'))
                     
-                    # Gabungkan gambar baharu tanpa menggantikan yang lama
                     if gambar_muat_naik:
                         for g in gambar_muat_naik:
                             if g not in gambar_disimpan and len(gambar_disimpan) < 5:
                                 gambar_disimpan.append(g)
                     
-                    # Paparkan semua gambar yang dimuat naik
                     if gambar_disimpan:
                         cols_img = st.columns(min(len(gambar_disimpan), 5))
                         for idx_g, g in enumerate(gambar_disimpan[:5]):
@@ -416,7 +405,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
             if hantar:
                 st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
                 
-                # SIMPAN DATA KE GOOGLE SHEETS DENGAN COLUMNS GAMBAR 1-5
                 if conn:
                     try:
                         baris_baru = []
@@ -424,11 +412,8 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         
                         for no_i, d_item in data_semasa[komponen_pilihan].items():
                             item_info = [orig for orig in data_eksa[komponen_pilihan] if orig['No'] == no_i][0]
-                            
-                            # Tukar setiap gambar kepada Base64
                             senarai_b64 = [imej_ke_base64(g) for g in d_item['Gambar']]
                             
-                            # Isikan nilai sehingga 5 lajur
                             g1 = senarai_b64[0] if len(senarai_b64) > 0 else ""
                             g2 = senarai_b64[1] if len(senarai_b64) > 1 else ""
                             g3 = senarai_b64[2] if len(senarai_b64) > 2 else ""
@@ -550,9 +535,6 @@ elif menu_paparan == "📊 Markah Audit":
 
         senarai_komp_laporan = list(data_eksa.keys()) if pilih_komponen == "Semua Komponen" else [pilih_komponen]
 
-        # ==========================================
-        # SENARAI REKOD AUDIT (DENGAN EDIT & DELETE)
-        # ==========================================
         st.subheader("📝 Pengurusan & Suntingan Rekod Audit")
         
         ada_rekod = False
@@ -581,7 +563,6 @@ elif menu_paparan == "📊 Markah Audit":
                                     for gambar in senarai_gambar(data.get('Gambar')):
                                         st.image(gambar, width=120, caption="Bukti Gambar")
                                 
-                                # --- BUTANG SUNTING (EDIT) ---
                                 with c_edit:
                                     with st.popover("✏️ Edit"):
                                         st.markdown(f"**Edit Item {no_item}**")
@@ -605,14 +586,12 @@ elif menu_paparan == "📊 Markah Audit":
                                         )
                                         
                                         if st.button("💾 Simpan Kemas Kini", key=f"btn_save_{zon}_{nm_auditor}_{komp}_{no_item}"):
-                                            # Update Session State
                                             st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Markah'] = markah_baru
                                             st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Ulasan'] = ulasan_baru
                                             if gambar_baru is not None:
                                                 st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]['Gambar'] = gambar_baru
                                             
-                                            # Re-sync dengan GSheets jika ada sambungan
-                                            if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                            if conn:
                                                 try:
                                                     df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                                                     mask = (df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item))
@@ -625,14 +604,11 @@ elif menu_paparan == "📊 Markah Audit":
                                             st.success("✅ Rekod berjaya dikemas kini!")
                                             st.rerun()
 
-                                # --- BUTANG PADAM (DELETE) ---
                                 with c_del:
                                     if st.button("🗑️ Padam", key=f"del_{zon}_{nm_auditor}_{komp}_{no_item}", type="primary"):
-                                        # Padam dari Session State
                                         del st.session_state.pangkalan_data[zon][nm_auditor][komp][no_item]
                                         
-                                        # Padam dari GSheets jika bersambung
-                                        if conn and "https://docs.google.com/spreadsheets/d/1VZzjHycnRV_vOKNld5YSumf9rpOB3FOInjWlpF5qgZA/edit?usp=sharing" not in URL_GSHEETS:
+                                        if conn:
                                             try:
                                                 df_g = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
                                                 df_filtered = df_g[~((df_g['Zon'] == zon) & (df_g['Juruaudit'] == nm_auditor) & (df_g['Komponen'] == komp) & (df_g['No_Item'].astype(str) == str(no_item)))]
@@ -748,10 +724,13 @@ elif menu_paparan == "📊 Markah Audit":
 
         if not ada_kelemahan:
             st.success("Tahniah! Tiada item dengan markah rendah (1 atau 2) yang memerlukan tindakan susulan bagi tetapan yang dipilih.")
+
 # ==========================================
-# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (BARU)
+# PAPARAN 3: RUMUSAN MARKAH TERPERINCI
 # ==========================================
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
+    if fail_logo:
+        st.image(fail_logo, width=150)
         
     st.title("📈 Rumusan Markah Terperinci")
     st.write("Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi (rujukan imej).")
@@ -761,8 +740,6 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     
     st.markdown("---")
     
-    # PENTING: Tiada jarak/indentation diletakkan di permulaan tag HTML 
-    # untuk mengelakkan Streamlit menjadikannya sebagai Code Block.
     html_jadual_rumusan = f"""<style>
 .tabel-rumusan {{ 
     width: 100%; 
@@ -865,6 +842,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     html_jadual_rumusan += "</tbody></table></div>"
     
     st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
+
 # ==========================================
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
