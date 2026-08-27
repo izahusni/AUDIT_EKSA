@@ -202,7 +202,7 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (SEMAKAN TEPAT MATRIKS EKSA) ---
+# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (MUKTAMAD) ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
     zon_upper = str(zon).upper()
@@ -211,13 +211,13 @@ def dapatkan_item_tapis(komponen, zon):
     # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["12", "13", "15"]  # B12, B13, B15
+            item_dikecualikan = ["12", "13", "15"]  # B12, B13, B15[cite: 2]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]  # B11, B14, B16[cite: 2]
         elif "SEPAKAT" in zon_upper:
             item_dikecualikan = ["11", "12", "13", "14", "15", "16"]  # B11-B16[cite: 2]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["11", "13", "14", "15", "16"]  # B11, B13, B14, B15, B16[cite: 2]
+            item_dikecualikan = ["11", "13", "14", "15", "16"]  # B11, B13-B16[cite: 2]
             
     # KOMPONEN C: Tempat Umum[cite: 2]
     elif "KOMPONEN C" in komponen_upper:
@@ -226,35 +226,33 @@ def dapatkan_item_tapis(komponen, zon):
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "6", "7"]  # C1, C6, C7[cite: 2]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "8"]  # C1, C2, C3, C5, C8[cite: 2]
+            item_dikecualikan = ["1", "2", "3", "5", "8"]  # C1-C3, C5, C8[cite: 2]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "5", "6", "7", "8"]  # C1, C5, C6, C7, C8[cite: 2]
+            item_dikecualikan = ["1", "5", "6", "7", "8"]  # C1, C5-C8[cite: 2]
             
     # KOMPONEN D: Bilik Pembelajaran & Pengajaran[cite: 2]
     elif "KOMPONEN D" in komponen_upper:
         if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]  # D3, D4, D5[cite: 2]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "6"]  # D1, D2, D3, D5, D6[cite: 2]
+            item_dikecualikan = ["1", "2", "3", "5", "6"]  # D1-D3, D5, D6[cite: 2]
         elif "SEPAKAT" in zon_upper:
             item_dikecualikan = ["1", "5", "6"]  # D1, D5, D6[cite: 2]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "4", "6"]  # D1, D2, D3, D4, D6[cite: 2]
+            item_dikecualikan = ["1", "2", "3", "4", "6"]  # D1-D4, D6[cite: 2]
 
-    # Komponen A & E: Semua elemen masuk (Tiada item dipadam)[cite: 2]
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
     
     for item in items_asal:
-        # Mengambil digit sahaja untuk mengelakkan ralat format string Excel (cth: "B12" / "12." -> "12")
+        # Ekstrak DIGIT SAHAJA dari item['No'] (Contoh: "B12" atau "12." menjadi "12")
         num_only = ''.join(filter(str.isdigit, str(item['No'])))
         
-        # Hanya kekalkan item yang TIDAK tergolong dalam senarai DELETE
+        # Buang item jika digit berada dalam senarai dikecualikan[cite: 2]
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
             
     return filtered_items
-
 # --- FUNGSI KIRA PRESTASI (DIKEMAS KINI: HANYA KIRA ITEM SAH) ---
 def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
