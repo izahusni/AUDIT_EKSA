@@ -202,7 +202,7 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (MUKTAMAD) ---
+# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (MUKTAMAD & BERKESAN) ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
     zon_upper = str(zon).upper()
@@ -245,68 +245,14 @@ def dapatkan_item_tapis(komponen, zon):
     filtered_items = []
     
     for item in items_asal:
-        # Ekstrak DIGIT SAHAJA dari item['No'] (Contoh: "B12" atau "12." menjadi "12")
+        # Tapis digit sahaja dari No Item (Contoh: "B12" / "12." / 12 -> "12")
         num_only = ''.join(filter(str.isdigit, str(item['No'])))
         
-        # Buang item jika digit berada dalam senarai dikecualikan[cite: 2]
+        # Buang item dari borang secara mutlak jika tersenarai dalam item dikecualikan[cite: 2]
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
             
     return filtered_items
-# --- FUNGSI KIRA PRESTASI (DIKEMAS KINI: HANYA KIRA ITEM SAH) ---
-def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
-    ringkasan_markah = {}
-    total_markah_semua = 0
-    total_penuh_semua = 0
-    
-    komponen_dipilih = data_eksa.keys() if filter_komp == "Semua Komponen" else [filter_komp]
-    
-    for komp in komponen_dipilih:
-        rekod_komponen = data_individu.get(komp, {})
-        
-        # Dapatkan item yang HANYA SAH untuk zon ini
-        item_sah = dapatkan_item_tapis(komp, zon)
-        no_item_sah = [str(x['No']) for x in item_sah]
-        
-        jumlah_markah = 0
-        if rekod_komponen:
-            for no_i, val in rekod_komponen.items():
-                # HANYA campur markah jika item tidak dibuang
-                if str(no_i) in no_item_sah and isinstance(val, dict):
-                    jumlah_markah += val['Markah']
-        
-        jumlah_item = len(item_sah)
-        markah_penuh = jumlah_item * 5
-        
-        peratusan = (jumlah_markah / markah_penuh) * 100 if markah_penuh > 0 else 0
-        if jumlah_item > 0:
-            ringkasan_markah[komp] = peratusan
-            
-        total_markah_semua += jumlah_markah
-        total_penuh_semua += markah_penuh
-        
-    peratusan_keseluruhan = (total_markah_semua / total_penuh_semua) * 100 if total_penuh_semua > 0 else 0
-    return ringkasan_markah, total_markah_semua, total_penuh_semua, peratusan_keseluruhan
-
-# --- 4. SIDEBAR LOGO ---
-fail_logo = None
-for nm in ['logo.png', 'Logo.png', 'LOGO.PNG', 'logo.PNG', 'logo.jpeg', 'logo.jpg']:
-    if os.path.exists(nm):
-        fail_logo = nm
-        break
-
-if fail_logo:
-    st.sidebar.image(fail_logo, use_container_width=True)
-
-st.sidebar.title("SISTEM AUDIT EKSA")
-st.sidebar.markdown("---")
-st.sidebar.header("Navigasi Sistem")
-menu_paparan = st.sidebar.radio("Sila pilih menu paparan:", [
-    "📋 Modul Kerja (Borang)", 
-    "📊 Markah Audit", 
-    "📈 Rumusan Markah Terperinci",
-    "🖨️ Laporan Penuh & Cetakan",
-])
 
 
 # ==========================================
@@ -323,9 +269,8 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
     with col_info2:
         komponen_upper = str(komponen_pilihan).upper()
         if "KOMPONEN A" in komponen_upper or "KOMPONEN E" in komponen_upper:
-            pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."]
+            pilihan_zon_rasmi = ["ZON INDUK", "ZON LAIN-LAIN..."][cite: 2]
         else:
-            # Tetap guna ejaan rasmi di dropdown untuk keseragaman database
             pilihan_zon_rasmi = ["ZON EFEKTIF", "ZON KOMITED", "ZON SEPAKAT", "ZON AKTIF", "ZON LAIN-LAIN..."]
             
         lokasi_audit_sel = st.selectbox("2. Pilih Zon:", pilihan_zon_rasmi)
@@ -353,7 +298,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         st.subheader(f"Menilai: {komponen_pilihan}")
         st.caption(f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}")
         
-       # MENGGUNAKAN ITEM YANG TELAH DITAPIS MENGIKUT ZON
+        # DAPATKAN ITEM TERFUKUS & TAPIS SECARA KETAT
         items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
         
         if komponen_pilihan not in data_semasa:
@@ -362,11 +307,12 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         if not items:
             st.info("Tiada item untuk dinilai bagi komponen dan zon yang dipilih berdasarkan kriteria pengecualian.")
         else:
+            # PENTING: Key Form memasukkan {zon_audit} supaya borang me-refresh terus bila Zon bertukar
             with st.form(key=f"form_{komponen_pilihan}_{zon_audit}"):
                 current_displayed_subtopic = ""
                 
                 for item in items:
-                    # Double Check: Pastikan item dikecualikan tidak melepasi borang
+                    # Gandaan Perlindungan: Buang item jika masih mempunyai digit dikecualikan
                     num_only = ''.join(filter(str.isdigit, str(item['No'])))
                     
                     if item['Subtopik'] != current_displayed_subtopic:
@@ -374,8 +320,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         current_displayed_subtopic = item['Subtopik']
                     
                     st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
-                    
-                    # ... (Kekalkan kod paparan input radio, ulasan & gambar seperti asal)
                     
                     with st.expander(f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"):
                         for skor, deskripsi in item['Rubrik'].items():
@@ -391,13 +335,13 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     with col1:
                         markah = st.radio("Markah", options=[1, 2, 3, 4, 5], 
                                           index=[1, 2, 3, 4, 5].index(rekod_lama['Markah']), 
-                                          horizontal=True, key=f"mark_{komponen_pilihan}_{item['No']}")
+                                          horizontal=True, key=f"mark_{zon_audit}_{komponen_pilihan}_{item['No']}")
                     with col2:
                         ulasan = st.text_input("Ulasan/Komen Asal", value=rekod_lama['Ulasan'], 
-                                               key=f"ulasan_{komponen_pilihan}_{item['No']}")
+                                               key=f"ulasan_{zon_audit}_{komponen_pilihan}_{item['No']}")
                     with col3:
                         gambar_muat_naik = st.file_uploader("Muat Naik Bukti (Sebelum)", type=['png', 'jpg', 'jpeg'], 
-                                                            key=f"gambar_{komponen_pilihan}_{item['No']}")
+                                                            key=f"gambar_{zon_audit}_{komponen_pilihan}_{item['No']}")
                         gambar_disimpan = rekod_lama['Gambar']
                         
                         if gambar_muat_naik is not None:
