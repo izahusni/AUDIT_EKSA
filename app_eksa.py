@@ -202,15 +202,15 @@ except Exception as e:
     st.error(f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini.")
     st.stop()
 
-# --- FUNGSI BARU: PENAPISAN ITEM MENGIKUT ZON ---
+# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (DIEMAS KINI & DITAMBAH BAIK) ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
     zon_upper = str(zon).upper()
     item_dikecualikan = []
     
-    # Logik pengecualian mengikut zon (menyokong variasi ejaan ZON EFEKTIF/EFEKTIF)
+    # Peraturam Pengecualian mengikut Komponen & Zon
     if "KOMPONEN B" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "EFEKTIF" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["11", "14", "16"]
@@ -220,7 +220,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["11", "13", "14", "15", "16"]
             
     elif "KOMPONEN C" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "efektif" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["5", "6", "7", "8"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "6", "7"]
@@ -230,7 +230,7 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["1", "5", "6", "7", "8"]
             
     elif "KOMPONEN D" in komponen_upper:
-        if "EFEKTIF" in zon_upper or "efektif" in zon_upper:
+        if "EFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]
         elif "KOMITED" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "5", "6"]
@@ -238,12 +238,17 @@ def dapatkan_item_tapis(komponen, zon):
             item_dikecualikan = ["1", "5", "6"]
         elif "AKTIF" in zon_upper:
             item_dikecualikan = ["1", "2", "3", "4", "6"]
-            
+
+    # Komponen A dan E: Jika Zon Induk, kekalkan semua item.
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
+    
     for item in items_asal:
-        # Ambil nombor sahaja dari item['No'] untuk penapisan tepat
-        num_only = ''.join(filter(str.isdigit, str(item['No'])))
+        # Normalisasi nombor item untuk pemadanan tepat
+        num_str = str(item['No']).strip()
+        num_only = ''.join(filter(str.isdigit, num_str))
+        
+        # Hanya masukkan item jika nombornya TIDAK berada dalam senarai dikecualikan
         if num_only not in item_dikecualikan:
             filtered_items.append(item)
             
