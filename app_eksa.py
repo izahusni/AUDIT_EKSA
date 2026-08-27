@@ -876,6 +876,39 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
 elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
+# DIKEMAS KINI: HANYA CAMPUR ITEM SAH SUPAYA KIRAAN TEPAT PER-100 (ABAIKAN N/A DAN 0)
+    def kumpul_markah_zon(zon_nama, komp_nama):
+        komp_upper = str(komp_nama).upper()
+        is_komp_a_or_e = "KOMPONEN A" in komp_upper or "KOMPONEN E" in komp_upper
+
+        if zon_nama == "ZON INDUK" and not is_komp_a_or_e:
+            return 0, 0
+
+        if zon_nama != "ZON INDUK" and is_komp_a_or_e:
+            return 0, 0
+
+        # Dapatkan item yang HANYA sah untuk zon ini
+        item_sah = dapatkan_item_tapis(komp_nama, zon_nama)
+        no_item_sah = [str(x['No']) for x in item_sah]
+
+        total_m = 0
+        total_p = 0
+        
+        if zon_nama in st.session_state.pangkalan_data:
+            dict_zon = st.session_state.pangkalan_data[zon_nama]
+            for nm_aud, data_aud in dict_zon.items():
+                if komp_nama in data_aud:
+                    for no_i, d_item in data_aud[komp_nama].items():
+                        if str(no_i) in no_item_sah and isinstance(d_item, dict):
+                            markah_item = d_item.get('Markah', 0)
+                            
+                            # HANYA kumpul jika markah adalah sah (1, 2, 3, 4, 5).
+                            # Abaikan nilai 0, N/A, atau data hantu (ghost data)
+                            if markah_item in [1, 2, 3, 4, 5]:
+                                total_m += markah_item
+                                total_p += 5
+
+        return total_m, total_p
         
     st.title("🖨️ Pusat Pelaporan & Cetakan")
     st.write("Sila pilih jenis cetakan laporan yang dikehendaki:")
