@@ -72,19 +72,19 @@ def senkron_data_dari_gsheets():
                     if k not in st.session_state.pangkalan_data[z][j]:
                         st.session_state.pangkalan_data[z][j][k] = {}
 
-                    gbr_val = (
-                        str(row["Gambar_Base64"])
-                        if "Gambar_Base64" in row
-                        and pd.notna(row["Gambar_Base64"])
-                        else None
-                    )
+                    # Membaca 5 Gambar dari Google Sheets
+                    senarai_gbr = []
+                    for idx_g in range(1, 6):
+                        col_name = f"Gambar_{idx_g}"
+                        if col_name in row and pd.notna(row[col_name]):
+                            senarai_gbr.append(str(row[col_name]))
 
                     st.session_state.pangkalan_data[z][j][k][no_i] = {
                         "Markah": int(row["Markah"]),
                         "Ulasan": (
                             str(row["Ulasan"]) if pd.notna(row["Ulasan"]) else ""
                         ),
-                        "Gambar": gbr_val,
+                        "Senarai_Gambar": senarai_gbr,
                         "Ulasan_Susulan": "",
                         "Gambar_Susulan": None,
                         "Tarikh_Susulan": datetime.date.today(),
@@ -447,7 +447,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         {
                             "Markah": 3,
                             "Ulasan": "",
-                            "Gambar": None,
+                            "Senarai_Gambar": [],
                             "Ulasan_Susulan": "",
                             "Gambar_Susulan": None,
                             "Tarikh_Susulan": datetime.date.today(),
@@ -470,27 +470,37 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                             key=f"ulasan_{komponen_pilihan}_{item['No']}",
                         )
                     with col3:
-                        gambar_muat_naik = st.file_uploader(
-                            "Muat Naik Bukti (Sebelum)",
+                        gambar_muat_naik_list = st.file_uploader(
+                            "Muat Naik Bukti (Maksima 5 Gambar)",
                             type=["png", "jpg", "jpeg"],
+                            accept_multiple_files=True,
                             key=f"gambar_{komponen_pilihan}_{item['No']}",
                         )
-                        gambar_disimpan = rekod_lama["Gambar"]
 
-                        if gambar_muat_naik is not None:
-                            gambar_disimpan = gambar_ke_base64(gambar_muat_naik)
+                        gambar_disimpan_list = rekod_lama.get("Senarai_Gambar", [])
 
-                        if gambar_disimpan:
-                            st.image(
-                                gambar_disimpan,
-                                width=120,
-                                caption="Gambar dimuat naik",
-                            )
+                        if gambar_muat_naik_list:
+                            if len(gambar_muat_naik_list) > 5:
+                                st.warning("⚠️ Hanya 5 gambar pertama akan disimpan.")
+                                gambar_muat_naik_list = gambar_muat_naik_list[:5]
+
+                            gambar_disimpan_list = []
+                            for g_file in gambar_muat_naik_list:
+                                b64_res = gambar_ke_base64(g_file)
+                                if b64_res:
+                                    gambar_disimpan_list.append(b64_res)
+
+                        if gambar_disimpan_list:
+                            st.write("Gambar Dimuat Naik:")
+                            cols_g = st.columns(min(len(gambar_disimpan_list), 5))
+                            for idx_img, img_b64 in enumerate(gambar_disimpan_list):
+                                with cols_g[idx_img]:
+                                    st.image(img_b64, use_container_width=True)
 
                     data_semasa[komponen_pilihan][item["No"]] = {
                         "Markah": markah,
                         "Ulasan": ulasan,
-                        "Gambar": gambar_disimpan,
+                        "Senarai_Gambar": gambar_disimpan_list,
                         "Ulasan_Susulan": rekod_lama["Ulasan_Susulan"],
                         "Gambar_Susulan": rekod_lama["Gambar_Susulan"],
                         "Tarikh_Susulan": rekod_lama.get(
@@ -530,6 +540,13 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                     else "KRITERIA UMUM"
                                 )
 
+                                g_list = d_item.get("Senarai_Gambar", [])
+                                g1 = g_list[0] if len(g_list) > 0 else ""
+                                g2 = g_list[1] if len(g_list) > 1 else ""
+                                g3 = g_list[2] if len(g_list) > 2 else ""
+                                g4 = g_list[3] if len(g_list) > 3 else ""
+                                g5 = g_list[4] if len(g_list) > 4 else ""
+
                                 baris_baru.append(
                                     {
                                         "Tarikh": tarikh_sekarang,
@@ -541,11 +558,11 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                         "No_Item": str(no_i),
                                         "Markah": d_item["Markah"],
                                         "Ulasan": d_item["Ulasan"],
-                                        "Gambar_Base64": (
-                                            d_item["Gambar"]
-                                            if d_item["Gambar"]
-                                            else ""
-                                        ),
+                                        "Gambar_1": g1,
+                                        "Gambar_2": g2,
+                                        "Gambar_3": g3,
+                                        "Gambar_4": g4,
+                                        "Gambar_5": g5,
                                     }
                                 )
 
@@ -564,7 +581,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 spreadsheet=URL_GSHEETS, data=df_gabung
                             )
                             st.success(
-                                "✅ Data dan gambar berjaya disimpan secara KEKAL ke Google Sheets!"
+                                "✅ Data dan 5 gambar berjaya disimpan ke Google Sheets!"
                             )
                         except Exception as err:
                             st.error(f"Gagal berhubung ke Google Sheets: {err}")
@@ -753,12 +770,16 @@ elif menu_paparan == "📊 Markah Audit":
                                     st.write(
                                         f"**Ulasan:** {data['Ulasan'] if data['Ulasan'] else '*Tiada*'}"
                                     )
-                                    if data.get("Gambar"):
-                                        st.image(
-                                            data["Gambar"],
-                                            width=150,
-                                            caption="Bukti Gambar",
-                                        )
+                                    gbr_list_view = data.get("Senarai_Gambar", [])
+                                    if gbr_list_view:
+                                        cols_view = st.columns(min(len(gbr_list_view), 5))
+                                        for idx_v, img_v in enumerate(gbr_list_view):
+                                            with cols_view[idx_v]:
+                                                st.image(
+                                                    img_v,
+                                                    caption=f"Gambar {idx_v+1}",
+                                                    use_container_width=True,
+                                                )
 
                                 # BUTANG SUNTING (EDIT)
                                 with c_edit:
@@ -779,9 +800,10 @@ elif menu_paparan == "📊 Markah Audit":
                                             value=data["Ulasan"],
                                             key=f"edit_u_{zon}_{nm_auditor}_{komp}_{no_item}",
                                         )
-                                        gambar_baru = st.file_uploader(
-                                            "Tukar Gambar",
+                                        gambar_baru_list = st.file_uploader(
+                                            "Tukar Gambar (Max 5)",
                                             type=["png", "jpg", "jpeg"],
+                                            accept_multiple_files=True,
                                             key=f"edit_g_{zon}_{nm_auditor}_{komp}_{no_item}",
                                         )
 
@@ -800,18 +822,21 @@ elif menu_paparan == "📊 Markah Audit":
                                                 "Ulasan"
                                             ] = ulasan_baru
 
-                                            gbr_base64_baru = data["Gambar"]
-                                            if gambar_baru is not None:
-                                                gbr_base64_baru = (
-                                                    gambar_ke_base64(
-                                                        gambar_baru
-                                                    )
-                                                )
-                                                st.session_state.pangkalan_data[
-                                                    zon
-                                                ][nm_auditor][komp][no_item][
-                                                    "Gambar"
-                                                ] = gbr_base64_baru
+                                            gbr_updated_list = data.get("Senarai_Gambar", [])
+                                            if gambar_baru_list:
+                                                if len(gambar_baru_list) > 5:
+                                                    gambar_baru_list = gambar_baru_list[:5]
+                                                gbr_updated_list = []
+                                                for g_f in gambar_baru_list:
+                                                    b64_str = gambar_ke_base64(g_f)
+                                                    if b64_str:
+                                                        gbr_updated_list.append(b64_str)
+
+                                            st.session_state.pangkalan_data[zon][
+                                                nm_auditor
+                                            ][komp][no_item][
+                                                "Senarai_Gambar"
+                                            ] = gbr_updated_list
 
                                             if conn is not None:
                                                 try:
@@ -842,10 +867,17 @@ elif menu_paparan == "📊 Markah Audit":
                                                     df_g.loc[
                                                         mask, "Ulasan"
                                                     ] = ulasan_baru
-                                                    if gambar_baru is not None:
-                                                        df_g.loc[
-                                                            mask, "Gambar_Base64"
-                                                        ] = gbr_base64_baru
+
+                                                    if gambar_baru_list:
+                                                        for idx_up in range(1, 6):
+                                                            col_n = f"Gambar_{idx_up}"
+                                                            val_up = (
+                                                                gbr_updated_list[idx_up - 1]
+                                                                if len(gbr_updated_list) >= idx_up
+                                                                else ""
+                                                            )
+                                                            df_g.loc[mask, col_n] = val_up
+
                                                     conn.update(
                                                         spreadsheet=URL_GSHEETS,
                                                         data=df_g,
@@ -1025,12 +1057,16 @@ elif menu_paparan == "📊 Markah Audit":
                                 st.write(
                                     f"**Komen Juruaudit:** {data['Ulasan'] if data['Ulasan'] else '*Tiada ulasan ditinggalkan.*'}"
                                 )
-                                if data.get("Gambar"):
-                                    st.image(
-                                        data["Gambar"],
-                                        caption="Bukti Semasa Audit",
-                                        use_container_width=True,
-                                    )
+                                gbr_asal_list = data.get("Senarai_Gambar", [])
+                                if gbr_asal_list:
+                                    cols_g_asal = st.columns(min(len(gbr_asal_list), 5))
+                                    for idx_g_a, img_g_a in enumerate(gbr_asal_list):
+                                        with cols_g_asal[idx_g_a]:
+                                            st.image(
+                                                img_g_a,
+                                                caption=f"Gambar {idx_g_a+1}",
+                                                use_container_width=True,
+                                            )
                                 else:
                                     st.info("Tiada bukti gambar asal.")
 
