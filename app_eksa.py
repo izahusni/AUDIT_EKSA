@@ -243,35 +243,35 @@ def dapatkan_item_tapis(komponen, zon):
     # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["12", "13", "15"]
+            item_dikecualikan = ["B12", "B13", "B15"]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["11", "14", "16"]
+            item_dikecualikan = ["B11", "B14", "B16"]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
+            item_dikecualikan = ["B11", "B12", "B13", "B14", "B15", "B16"]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["11", "13", "14", "15", "16"]
+            item_dikecualikan = ["B11", "B13", "B14", "B15", "B16"]
 
     # KOMPONEN C: Tempat Umum
     elif "KOMPONEN C" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["5", "6", "7", "8"]
+            item_dikecualikan = ["C5", "C6", "C7", "C8"]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "6", "7"]
+            item_dikecualikan = ["C1", "C6", "C7"]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "8"]
+            item_dikecualikan = ["C1", "C2", "C3", "C5", "C8"]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "5", "6", "7", "8"]
+            item_dikecualikan = ["C1", "C5", "C6", "C7", "C8"]
 
     # KOMPONEN D: Bilik Pembelajaran & Pengajaran
     elif "KOMPONEN D" in komponen_upper:
         if "EFEKTIF" in zon_upper:
-            item_dikecualikan = ["3", "4", "5"]
+            item_dikecualikan = ["D3", "D4", "D5"]
         elif "KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "6"]
+            item_dikecualikan = ["D1", "D2", "D3", "D5", "D6"]
         elif "SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "5", "6"]
+            item_dikecualikan = ["D1", "D5", "D6"]
         elif "AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "4", "6"]
+            item_dikecualikan = ["D1", "D2", "D3", "D4", "D6"]
 
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
