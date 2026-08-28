@@ -242,35 +242,35 @@ def dapatkan_item_tapis(komponen, zon):
 
     # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
-        if "EFEKTIF" in zon_upper:
+        if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["B12", "B13", "B15"]
-        elif "KOMITED" in zon_upper:
+        elif "ZON KOMITED" in zon_upper:
             item_dikecualikan = ["B11", "B14", "B16"]
-        elif "SEPAKAT" in zon_upper:
+        elif "ZON SEPAKAT" in zon_upper:
             item_dikecualikan = ["B11", "B12", "B13", "B14", "B15", "B16"]
-        elif "AKTIF" in zon_upper:
+        elif "ZON AKTIF" in zon_upper:
             item_dikecualikan = ["B11", "B13", "B14", "B15", "B16"]
 
     # KOMPONEN C: Tempat Umum
     elif "KOMPONEN C" in komponen_upper:
-        if "EFEKTIF" in zon_upper:
+        if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["C5", "C6", "C7", "C8"]
-        elif "KOMITED" in zon_upper:
+        elif "ZON KOMITED" in zon_upper:
             item_dikecualikan = ["C1", "C6", "C7"]
-        elif "SEPAKAT" in zon_upper:
+        elif "ZON SEPAKAT" in zon_upper:
             item_dikecualikan = ["C1", "C2", "C3", "C5", "C8"]
-        elif "AKTIF" in zon_upper:
+        elif "ZON AKTIF" in zon_upper:
             item_dikecualikan = ["C1", "C5", "C6", "C7", "C8"]
 
     # KOMPONEN D: Bilik Pembelajaran & Pengajaran
     elif "KOMPONEN D" in komponen_upper:
-        if "EFEKTIF" in zon_upper:
+        if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["D3", "D4", "D5"]
-        elif "KOMITED" in zon_upper:
+        elif "ZON KOMITED" in zon_upper:
             item_dikecualikan = ["D1", "D2", "D3", "D5", "D6"]
-        elif "SEPAKAT" in zon_upper:
+        elif "ZON SEPAKAT" in zon_upper:
             item_dikecualikan = ["D1", "D5", "D6"]
-        elif "AKTIF" in zon_upper:
+        elif "ZON AKTIF" in zon_upper:
             item_dikecualikan = ["D1", "D2", "D3", "D4", "D6"]
 
     items_asal = data_eksa.get(komponen, [])
