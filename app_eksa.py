@@ -412,27 +412,18 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
             f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}"
         )
 
-        # -------------------------------------------------------------
-        # SEMBUNYIKAN ITEM DIKECUALIKAN:
-        # Menapis item mengikut Zon & Komponen sahaja yang sah
-        # -------------------------------------------------------------
-        items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
+        items = data_eksa.get(komponen_pilihan, [])
 
         if komponen_pilihan not in data_semasa:
             data_semasa[komponen_pilihan] = {}
 
         if not items:
-            st.warning(
-                f"⚠️ Tiada item untuk dinilai bagi {komponen_pilihan} di {zon_audit}. Semua item bagi komponen ini dikecualikan untuk zon ini."
-            )
+            st.info("Tiada item dijumpai bagi komponen ini.")
         else:
-            # Gunakan key unik borang mengikut Zon & Komponen supaya borang reset apabila zon berubah
             with st.form(key=f"form_{komponen_pilihan}_{zon_audit}_{nama_juruaudit}"):
                 current_displayed_subtopic = ""
-                input_data_temp = {}
 
                 for item in items:
-                    # Papar tajuk subtopik jika berbeza
                     if item["Subtopik"] != current_displayed_subtopic:
                         st.markdown(
                             f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>",
@@ -442,10 +433,10 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
                     st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
 
-                    # Rubrik Pemarkahan
                     with st.expander(
                         f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"
                     ):
+                        st.write("**Skor N/A:** Dikecualikan / Tidak Berkaitan Bagi Zon Ini")
                         for skor, deskripsi in item["Rubrik"].items():
                             if deskripsi and deskripsi != "nan":
                                 st.write(f"**Skor {skor}:** {deskripsi}")
@@ -462,12 +453,17 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         },
                     )
 
-                    col1, col2, col3 = st.columns([1, 1.5, 1.5])
+                    col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
                     with col1:
+                        # Menambah pilihan "N/A" serta 1 hingga 5
+                        pilihan_markah = ["N/A", 1, 2, 3, 4, 5]
+                        val_lama = rekod_lama["Markah"]
+                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 3
+
                         markah = st.radio(
                             "Markah",
-                            options=[1, 2, 3, 4, 5],
-                            index=[1, 2, 3, 4, 5].index(rekod_lama["Markah"]),
+                            options=pilihan_markah,
+                            index=idx_default,
                             horizontal=True,
                             key=f"mark_{zon_audit}_{komponen_pilihan}_{item['No']}",
                         )
@@ -505,8 +501,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 with cols_g[idx_img]:
                                     st.image(img_b64, use_container_width=True)
 
-                    # Simpan data sementara hanya untuk item yang SAH
-                    input_data_temp[item["No"]] = {
+                    data_semasa[komponen_pilihan][item["No"]] = {
                         "Markah": markah,
                         "Ulasan": ulasan,
                         "Senarai_Gambar": gambar_disimpan_list,
@@ -521,10 +516,9 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 hantar = st.form_submit_button("Simpan Markah & Gambar")
 
                 if hantar:
-                    # Kemas kini data di session state (hanya memasukkan item yang sah sahaja)
-                    st.session_state.pangkalan_data[zon_audit][nama_juruaudit][
-                        komponen_pilihan
-                    ] = input_data_temp
+                    st.session_state.pangkalan_data[zon_audit][
+                        nama_juruaudit
+                    ] = data_semasa
 
                     if conn is not None:
                         try:
@@ -533,7 +527,9 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 "%Y-%m-%d"
                             )
 
-                            for no_i, d_item in input_data_temp.items():
+                            for no_i, d_item in data_semasa[
+                                komponen_pilihan
+                            ].items():
                                 padanan = [
                                     orig
                                     for orig in data_eksa.get(
@@ -564,7 +560,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                         "Komponen": komponen_pilihan,
                                         "Subtopik": subtopik_val,
                                         "No_Item": str(no_i),
-                                        "Markah": d_item["Markah"],
+                                        "Markah": str(d_item["Markah"]),
                                         "Ulasan": d_item["Ulasan"],
                                         "Gambar_1": g1,
                                         "Gambar_2": g2,
@@ -579,14 +575,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 df_lama = conn.read(
                                     spreadsheet=URL_GSHEETS, ttl=0
                                 )
-                                # Padam rekod lama bagi item/zon/juruaudit ini jika wujud sebelum menggabungkan
-                                if not df_lama.empty:
-                                    mask = ~(
-                                        (df_lama["Zon"] == zon_audit)
-                                        & (df_lama["Juruaudit"] == nama_juruaudit)
-                                        & (df_lama["Komponen"] == komponen_pilihan)
-                                    )
-                                    df_lama = df_lama[mask]
                                 df_gabung = pd.concat(
                                     [df_lama, df_baru], ignore_index=True
                                 )
@@ -597,7 +585,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 spreadsheet=URL_GSHEETS, data=df_gabung
                             )
                             st.success(
-                                "✅ Data bagi item yang sah berjaya disimpan ke Google Sheets!"
+                                "✅ Data dan gambar berjaya disimpan ke Google Sheets!"
                             )
                         except Exception as err:
                             st.error(f"Gagal berhubung ke Google Sheets: {err}")
