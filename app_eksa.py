@@ -1268,7 +1268,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     color: black;
 }}
 .tabel-rumusan th, .tabel-rumusan td {{ 
-    border: 1.5px solid #000000;
+    border: 2px solid #e67e22;
     padding: 6px; 
     text-align: left; 
     vertical-align: top; 
@@ -1285,10 +1285,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 }}
 .center-text {{ 
     text-align: center; 
-    vertical-align: middle;
 }}
 .markah-column {{
-    width: 7%;
+    width: 6%;
     text-align: center;
 }}
 </style>
@@ -1297,8 +1296,8 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 <table class="tabel-rumusan">
 <thead>
 <tr>
-<th colspan="7" style="font-size: 16px; background-color: #f39c12; color: white;">{pilih_komp.upper()}</th>
-<th colspan="{colspan_markah}" style="font-size: 14px; background-color: #e67e22; color: white;">MARKAH</th>
+<th colspan="7" style="font-size: 16px;">{pilih_komp.upper()}</th>
+<th colspan="{colspan_markah}" style="font-size: 14px;">MARKAH</th>
 </tr>
 <tr>
 <th colspan="2" style="width: 25%;">KEPERLUAN UTAMA PELAKSANAAN</th>
@@ -1335,9 +1334,8 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                 for x in item_sebenar_zon
             ]
 
-            # Jika item TIDAK TERDAPAT dalam zon tersebut (Dikecualikan) -> Papar N/A
             if item_dig not in item_nums_zon:
-                skor_dicatat[z] = "N/A"
+                skor_dicatat[z] = "-"
             else:
                 skor_semasa = ""
 
@@ -1350,6 +1348,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                 if zon_key_match:
                     dict_zon = st.session_state.pangkalan_data[zon_key_match]
                     for aud_name, data_auditor in dict_zon.items():
+                        
                         komp_key_match = None
                         for k_k in data_auditor.keys():
                             k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
@@ -1362,9 +1361,10 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                             for i_k, i_v in dict_item.items():
                                 if "".join(filter(str.isdigit, str(i_k))) == item_dig:
                                     if isinstance(i_v, dict):
-                                        skor_val = i_v.get("Markah")
-                                        if skor_val is not None and str(skor_val).isdigit():
-                                            skor_semasa = int(skor_val)
+                                        skor_val = i_v.get("Markah", "")
+                                        skor_semasa = skor_val
+
+                                        if str(skor_val).isdigit():
                                             jumlah_skor_zon[z] += int(skor_val)
                                     break
                             if skor_semasa != "":
@@ -1374,16 +1374,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
-            val_display = skor_dicatat[z]
-            # Pewarnaan teks khas untuk membezakan N/A dan Markah
-            if val_display == "N/A":
-                style_text = "color: #7f8c8d; font-weight: bold;"
-            elif val_display == "-":
-                style_text = "color: #bdc3c7;"
-            else:
-                style_text = "color: #2c3e50; font-weight: bold;"
-
-            kolum_markah_html += f'<td class="center-text" style="{style_text}">{val_display}</td>\n'
+            kolum_markah_html += (
+                f'<td class="center-text"><b>{skor_dicatat[z]}</b></td>\n'
+            )
 
         html_jadual_rumusan += f"""<tr>
 <td class="center-text"><b>{item_no_str}</b></td>
@@ -1398,16 +1391,17 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
     kolum_jumlah_html = ""
     for z in zon_rasmi_list:
-        kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px; background-color: #fdebd0;">{jumlah_skor_zon[z]}</td>\n'
+        kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon[z]}</td>\n'
 
     html_jadual_rumusan += f"""<tr>
-<td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px; background-color: #fdebd0;">JUMLAH MARKAH DIPEROLEHI</td>
+<td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px;">JUMLAH</td>
 {kolum_jumlah_html}
 </tr>"""
 
     html_jadual_rumusan += "</tbody></table></div>"
 
     st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
+
 # ==========================================
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
