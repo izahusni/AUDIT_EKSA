@@ -462,7 +462,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
                     with col1:
                         # Menambah pilihan "N/A" serta 1 hingga 5
-                        pilihan_markah = ["N/A", 1, 2, 3, 4, 5]
+                        pilihan_markah = [1, 2, 3, 4, 5, "N/A"]
                         val_lama = rekod_lama["Markah"]
                         idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 3
 
