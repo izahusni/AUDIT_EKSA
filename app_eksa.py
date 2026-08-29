@@ -297,7 +297,6 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     for komp in komponen_dipilih:
         rekod_komponen = data_individu.get(komp, {})
 
-        # Ambil semua item bagi komponen berkenaan
         items_komp = data_eksa.get(komp, [])
 
         jumlah_markah = 0
@@ -310,7 +309,6 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
                     val = rekod_komponen[no_i]
                     if isinstance(val, dict):
                         m_val = val.get("Markah")
-                        # Abaikan jika N/A atau tidak sah
                         if m_val != "N/A" and str(m_val).isdigit():
                             jumlah_markah += int(m_val)
                             jumlah_item_dinilai += 1
@@ -337,6 +335,7 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
         total_penuh_semua,
         peratusan_keseluruhan,
     )
+
 # --- 4. SIDEBAR LOGO ---
 fail_logo = None
 for nm in ["logo.png", "Logo.png", "LOGO.PNG", "logo.PNG", "logo.jpeg", "logo.jpg"]:
@@ -461,7 +460,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
                     col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
                     with col1:
-                        # Menambah pilihan "N/A" serta 1 hingga 5
                         pilihan_markah = [1, 2, 3, 4, 5, "N/A"]
                         val_lama = rekod_lama["Markah"]
                         idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 3
@@ -603,6 +601,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
         st.warning(
             "Sila pastikan Zon dan Nama Juruaudit telah diisi untuk memulakan penilaian."
         )
+
 # ==========================================
 # PAPARAN 2: MARKAH AUDIT (DENGAN EDIT & DELETE)
 # ==========================================
@@ -794,7 +793,6 @@ elif menu_paparan == "📊 Markah Audit":
                                     with st.popover("✏️ Edit"):
                                         st.markdown(f"**Edit Item {no_item}**")
 
-                                        # Masukkan "N/A" ke dalam senarai pilihan dan uruskan indeks secara selamat
                                         pilihan_edit = [1, 2, 3, 4, 5, "N/A"]
                                         val_m = data.get("Markah", "N/A")
                                         idx_m = pilihan_edit.index(val_m) if val_m in pilihan_edit else 0
@@ -1266,21 +1264,20 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                 skor_dicatat[z] = "N/A"
             else:
                 skor_semasa = ""
-if z in st.session_state.pangkalan_data:
-    for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
-        if (
-            pilih_komp in data_auditor
-            and item["No"] in data_auditor[pilih_komp]
-        ):
-            skor_val = data_auditor[pilih_komp][item["No"]].get("Markah", "")
-            skor_semasa = skor_val
-            
-            # Tambah ke jumlah skor HANYA jika nilainya adalah nombor (mengabaikan "N/A")
-            if skor_val != "N/A" and str(skor_val).isdigit():
-                jumlah_skor_zon[z] += int(skor_val)
-            break
+                if z in st.session_state.pangkalan_data:
+                    for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
+                        if (
+                            pilih_komp in data_auditor
+                            and item["No"] in data_auditor[pilih_komp]
+                        ):
+                            skor_val = data_auditor[pilih_komp][item["No"]].get("Markah", "")
+                            skor_semasa = skor_val
 
-skor_dicatat[z] = skor_semasa
+                            if skor_val != "N/A" and str(skor_val).isdigit():
+                                jumlah_skor_zon[z] += int(skor_val)
+                            break
+
+                skor_dicatat[z] = skor_semasa
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
