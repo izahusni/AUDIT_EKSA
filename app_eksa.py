@@ -450,7 +450,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     rekod_lama = data_semasa[komponen_pilihan].get(
                         item["No"],
                         {
-                            "Markah": 3,
+                            "Markah": "N/A",
                             "Ulasan": "",
                             "Senarai_Gambar": [],
                             "Ulasan_Susulan": "",
