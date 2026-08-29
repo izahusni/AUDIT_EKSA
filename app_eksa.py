@@ -1454,8 +1454,24 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         "ZON AKTIF",
     ]
 
-    # FUNGSI KUMPUL MARKAH ZON
+    # Pemetaan item yang tidak berkenaan (N/A) mengikut Komponen & Zon
+    def is_na_zone(komp_key, zon_nama):
+        k_upper = str(komp_key).upper()
+        z_upper = str(zon_nama).upper()
+        if "KOMPONEN A" in k_upper or "KOMPONEN E" in k_upper:
+            return "ZON INDUK" not in z_upper
+        elif "KOMPONEN B" in k_upper or "KOMPONEN C" in k_upper or "KOMPONEN D" in k_upper:
+            return "ZON INDUK" in z_upper
+        return False
+
+    # Fungsi kumpul markah diperolehi & markah penuh
     def kumpul_markah_zon(zon_nama, komp_nama):
+        if is_na_zone(komp_nama, zon_nama):
+            return None, None  # Penanda N/A
+
+        items_tapis = dapatkan_item_tapis(komp_nama, zon_nama)
+        m_penuh_standard = len(items_tapis) * 5
+
         total_m = 0
         count_item = 0
 
@@ -1468,7 +1484,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         if zon_match:
             dict_zon = st.session_state.pangkalan_data[zon_match]
             target_code = komp_nama.split(":")[0].strip().upper() if ":" in komp_nama else komp_nama.strip().upper()
-            
+
             for nm_aud, data_aud in dict_zon.items():
                 komp_match = None
                 for k_k in data_aud.keys():
@@ -1485,56 +1501,59 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                                 total_m += int(m_val)
                                 count_item += 1
 
-        total_p = count_item * 5
+        # Jika ada data dinilai, gunakan markah penuh item terjejas; jika belum, guna markah penuh standard zon
+        total_p = (count_item * 5) if count_item > 0 else m_penuh_standard
         return total_m, total_p
 
-    html_kandungan = ""
-    css_tambahan = """
-    <style>
-    .header-induk { background-color: #e9d5ff !important; color: #000000 !important; }
-    </style>
-    """
-    st.markdown(css_tambahan, unsafe_allow_html=True)
+    # Dapatkan Gambar Logo jika wujud
+    logo_base64_str = ""
+    if fail_logo and os.path.exists(fail_logo):
+        try:
+            with open(fail_logo, "rb") as img_f:
+                logo_base64_str = f"data:image/png;base64,{base64.b64encode(img_f.read()).decode()}"
+        except Exception:
+            logo_base64_str = ""
 
+    html_logo_tag = f'<img src="{logo_base64_str}" style="max-height: 80px; width: auto;">' if logo_base64_str else ""
+
+    html_kandungan = ""
+    senarai_komp_keys = ["KOMPONEN A", "KOMPONEN B", "KOMPONEN C", "KOMPONEN D", "KOMPONEN E"]
+    kod_huruf = ["A.", "B.", "C.", "D.", "E."]
+
+    # FORMAT 1: MARKAH AUDIT (FORMAT RINGKAS)
     if pilihan_jenis_cetakan == "1. Markah Audit (Format Ringkas)":
         html_kandungan = f"""
-        <div style="text-align: center; margin-bottom: 20px; background-color: #ffffff; color: #000000;">
-            <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000;">MARKAH AUDIT DALAM EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
+        <div style="display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 20px; background-color: #ffffff; color: #000000; padding: 10px; border: 1.5px solid #000000;">
+            <div style="position: absolute; left: 15px;">{html_logo_tag}</div>
+            <div style="text-align: center; width: 100%;">
+                <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000; font-weight: bold; font-size: 18px;">
+                    MARKAH AUDIT DALAM EKSA {tarikh_audit_cetak.year}<br>{nama_agensi}
+                </h3>
+            </div>
         </div>
         <table class="jadual-laporan">
             <thead>
                 <tr>
                     <th class="header-kelabu" style="width: 5%;">BIL.</th>
-                    <th class="header-kelabu" style="width: 40%;">KOMPONEN</th>
-                    <th class="header-induk" style="width: 11%;">% MARKAH<br>ZON INDUK</th>
-                    <th class="header-efektif" style="width: 11%;">% MARKAH<br>ZON EFEKTIF</th>
-                    <th class="header-komited" style="width: 11%;">% MARKAH<br>ZON KOMITED</th>
-                    <th class="header-sepakat" style="width: 11%;">% MARKAH<br>ZON SEPAKAT</th>
-                    <th class="header-aktif" style="width: 11%;">% MARKAH<br>ZON AKTIF</th>
+                    <th class="header-kelabu" style="width: 35%;">KOMPONEN</th>
+                    <th style="background-color: #ffff00 !important; color: #000000; width: 12%;">% MARKAH ZON<br>INDUK</th>
+                    <th style="background-color: #fef3c7 !important; color: #000000; width: 12%;">% MARKAH ZON<br>EFEKTIF</th>
+                    <th style="background-color: #bfdbfe !important; color: #000000; width: 12%;">% MARKAH ZON<br>KOMITED</th>
+                    <th style="background-color: #fca5a5 !important; color: #000000; width: 12%;">% MARKAH ZON<br>SEPAKAT</th>
+                    <th style="background-color: #bbf7d0 !important; color: #000000; width: 12%;">% MARKAH ZON<br>AKTIF</th>
                 </tr>
             </thead>
             <tbody>
         """
-        senarai_komp_keys = [
-            "KOMPONEN A",
-            "KOMPONEN B",
-            "KOMPONEN C",
-            "KOMPONEN D",
-            "KOMPONEN E",
-        ]
-        kod_huruf = ["A.", "B.", "C.", "D.", "E."]
+
         zon_total_m = {z: 0 for z in zon_rasmi_list}
         zon_total_p = {z: 0 for z in zon_rasmi_list}
 
         for idx, k_key in enumerate(senarai_komp_keys):
-            nam_komp = [
-                k for k in data_eksa.keys() if k_key in str(k).upper()
-            ]
+            nam_komp = [k for k in data_eksa.keys() if k_key in str(k).upper()]
             nam_komp_full = nam_komp[0] if nam_komp else k_key
             tajuk_bersih = (
-                nam_komp_full.replace(
-                    "KOMPONEN A", "KEPERLUAN UTAMA PELAKSANAAN"
-                )
+                nam_komp_full.replace("KOMPONEN A", "KEPERLUAN UTAMA PELAKSANAAN")
                 .replace("KOMPONEN B", "RUANG TEMPAT KERJA / PEJABAT")
                 .replace("KOMPONEN C", "TEMPAT UMUM")
                 .replace("KOMPONEN D", "BILIK PEMBELAJARAN & PENGAJARAN")
@@ -1544,15 +1563,13 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             html_kandungan += f"<tr><td><b>{kod_huruf[idx]}</b></td><td style='text-align: left;'><b>{tajuk_bersih}</b></td>"
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
-                zon_total_m[z_nam] += m_dapat
-                zon_total_p[z_nam] += m_penuh
-                if m_penuh > 0:
-                    pct = (m_dapat / m_penuh) * 100
-                    html_kandungan += f"<td><b>{pct:.2f}%</b></td>"
+                if m_dapat is None:
+                    html_kandungan += "<td style='background-color: #ffffff; color: #000000;'><b>N/A</b></td>"
                 else:
-                    html_kandungan += (
-                        f"<td><span style='color:#aaaaaa'>-</span></td>"
-                    )
+                    zon_total_m[z_nam] += m_dapat
+                    zon_total_p[z_nam] += m_penuh
+                    pct_str = f"{(m_dapat / m_penuh * 100):.2f}%" if m_penuh > 0 else ""
+                    html_kandungan += f"<td><b>{pct_str}</b></td>"
             html_kandungan += "</tr>"
 
         html_kandungan += "<tr><td colspan='2' class='header-kelabu'><b>PERATUS MARKAH ZON</b></td>"
@@ -1563,73 +1580,68 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
                 html_kandungan += f"<td><b>{z_pct:.2f}%</b></td>"
             else:
-                html_kandungan += f"<td><b>-</b></td>"
+                html_kandungan += f"<td><b></b></td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
         html_kandungan += "</tr>"
 
-        grand_pct = (grand_m / grand_p * 100) if grand_p > 0 else 0.0
+        grand_pct_str = f"{(grand_m / grand_p * 100):.2f}%" if grand_p > 0 else ""
         html_kandungan += f"""
             <tr>
                 <td colspan='2' class='header-kelabu'><b>PERATUS MARKAH KESELURUHAN</b></td>
-                <td colspan='5' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
+                <td colspan='5' style='font-size: 16px; text-align: center;'><b>{grand_pct_str}</b></td>
             </tr>
             </tbody>
         </table>
         """
 
+    # FORMAT 2: LAPORAN PENILAIAN AUDIT (FORMAT PENUH)
     elif pilihan_jenis_cetakan == "2. Laporan Penilaian Audit (Format Penuh)":
         html_kandungan = f"""
-        <div style="text-align: center; margin-bottom: 10px; background-color: #ffffff; color: #000000;">
-            <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000;">LAPORAN PENILAIAN AUDIT EKSA {tarikh_audit_cetak.year} {nama_agensi}</h3>
+        <div style="display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 10px; background-color: #ffffff; color: #000000; padding: 10px; border: 1.5px solid #000000;">
+            <div style="position: absolute; left: 15px;">{html_logo_tag}</div>
+            <div style="text-align: center; width: 100%;">
+                <h3 style="margin: 0; font-family: Arial, sans-serif; color: #000000; font-weight: bold; font-size: 16px;">
+                    LAPORAN PENILAIAN AUDIT EKSA {tarikh_audit_cetak.year}<br>{nama_agensi}
+                </h3>
+            </div>
         </div>
-        <p style="font-family: Arial, sans-serif; color: #000000;"><b>TARIKH AUDIT:</b> {tarikh_audit_cetak.strftime('%d %B %Y').upper()}</p>
+        <p style="font-family: Arial, sans-serif; color: #000000; margin-bottom: 8px;"><b>TARIKH AUDIT: {tarikh_audit_cetak.strftime('%d %B %Y').upper()}</b></p>
         <table class="jadual-laporan">
             <thead>
                 <tr>
-                    <th rowspan="2" class="header-kelabu" style="width: 4%;">BIL.</th>
-                    <th rowspan="2" class="header-kelabu" style="width: 26%;">KOMPONEN</th>
-                    <th colspan="2" class="header-induk">ZON INDUK</th>
-                    <th colspan="2" class="header-efektif">ZON EFEKTIF</th>
-                    <th colspan="2" class="header-komited">ZON KOMITED</th>
-                    <th colspan="2" class="header-sepakat">ZON SEPAKAT</th>
-                    <th colspan="2" class="header-aktif">ZON AKTIF</th>
+                    <th rowspan="2" class="header-kelabu" style="width: 3%;">BIL.</th>
+                    <th rowspan="2" class="header-kelabu" style="width: 25%;">KOMPONEN</th>
+                    <th colspan="2" style="background-color: #e9d5ff !important; color: #000000;">ZON INDUK</th>
+                    <th colspan="2" style="background-color: #fef3c7 !important; color: #000000;">ZON EFEKTIF</th>
+                    <th colspan="2" style="background-color: #bfdbfe !important; color: #000000;">ZON KOMITED</th>
+                    <th colspan="2" style="background-color: #fca5a5 !important; color: #000000;">ZON SEPAKAT</th>
+                    <th colspan="2" style="background-color: #bbf7d0 !important; color: #000000;">ZON AKTIF</th>
                 </tr>
                 <tr>
-                    <th class="header-induk">PENUH</th>
-                    <th class="header-induk">MARKAH</th>
-                    <th class="header-efektif">PENUH</th>
-                    <th class="header-efektif">MARKAH</th>
-                    <th class="header-komited">PENUH</th>
-                    <th class="header-komited">MARKAH</th>
-                    <th class="header-sepakat">PENUH</th>
-                    <th class="header-sepakat">MARKAH</th>
-                    <th class="header-aktif">PENUH</th>
-                    <th class="header-aktif">MARKAH</th>
+                    <th style="background-color: #e9d5ff !important; color: #000000; font-size: 11px;">MARKAH PENUH ZON INDUK</th>
+                    <th style="background-color: #e9d5ff !important; color: #000000; font-size: 11px;">MARKAH YANG DIPEROLEH ZON INDUK</th>
+                    <th style="background-color: #fef3c7 !important; color: #000000; font-size: 11px;">MARKAH PENUH ZON EFEKTIF</th>
+                    <th style="background-color: #fef3c7 !important; color: #000000; font-size: 11px;">MARKAH YANG DIPEROLEH ZON EFEKTIF</th>
+                    <th style="background-color: #bfdbfe !important; color: #000000; font-size: 11px;">MARKAH PENUH ZON KOMITED</th>
+                    <th style="background-color: #bfdbfe !important; color: #000000; font-size: 11px;">MARKAH YANG DIPEROLEH ZON KOMITED</th>
+                    <th style="background-color: #fca5a5 !important; color: #000000; font-size: 11px;">MARKAH PENUH ZON SEPAKAT</th>
+                    <th style="background-color: #fca5a5 !important; color: #000000; font-size: 11px;">MARKAH YANG DIPEROLEH ZON SEPAKAT</th>
+                    <th style="background-color: #bbf7d0 !important; color: #000000; font-size: 11px;">MARKAH PENUH ZON AKTIF</th>
+                    <th style="background-color: #bbf7d0 !important; color: #000000; font-size: 11px;">MARKAH YANG DIPEROLEH ZON AKTIF</th>
                 </tr>
             </thead>
             <tbody>
         """
-        senarai_komp_keys = [
-            "KOMPONEN A",
-            "KOMPONEN B",
-            "KOMPONEN C",
-            "KOMPONEN D",
-            "KOMPONEN E",
-        ]
-        kod_huruf = ["A.", "B.", "C.", "D.", "E."]
+
         zon_total_m = {z: 0 for z in zon_rasmi_list}
         zon_total_p = {z: 0 for z in zon_rasmi_list}
 
         for idx, k_key in enumerate(senarai_komp_keys):
-            nam_komp = [
-                k for k in data_eksa.keys() if k_key in str(k).upper()
-            ]
+            nam_komp = [k for k in data_eksa.keys() if k_key in str(k).upper()]
             nam_komp_full = nam_komp[0] if nam_komp else k_key
             tajuk_bersih = (
-                nam_komp_full.replace(
-                    "KOMPONEN A", "KEPERLUAN UTAMA PELAKSANAAN"
-                )
+                nam_komp_full.replace("KOMPONEN A", "KEPERLUAN UTAMA PELAKSANAAN")
                 .replace("KOMPONEN B", "RUANG TEMPAT KERJA / PEJABAT")
                 .replace("KOMPONEN C", "TEMPAT UMUM")
                 .replace("KOMPONEN D", "BILIK PEMBELAJARAN & PENGAJARAN")
@@ -1639,33 +1651,28 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             html_kandungan += f"<tr><td><b>{kod_huruf[idx]}</b></td><td style='text-align: left;'><b>{tajuk_bersih}</b></td>"
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
-                zon_total_m[z_nam] += m_dapat
-                zon_total_p[z_nam] += m_penuh
-
-                txt_p = (
-                    str(m_penuh)
-                    if m_penuh > 0
-                    else "<span style='color:#aaaaaa'>-</span>"
-                )
-                txt_m = (
-                    f"<b>{m_dapat}</b>"
-                    if m_penuh > 0
-                    else "<span style='color:#aaaaaa'>-</span>"
-                )
-                html_kandungan += f"<td>{txt_p}</td><td>{txt_m}</td>"
+                if m_dapat is None:
+                    html_kandungan += "<td style='color: #ff0000; font-weight: bold;'>N/A</td><td></td>"
+                else:
+                    zon_total_m[z_nam] += m_dapat
+                    zon_total_p[z_nam] += m_penuh
+                    txt_p = str(m_penuh)
+                    txt_m = str(m_dapat) if m_dapat > 0 else ""
+                    
+                    # Tetapan warna teks bagi markah penuh mengikut sampel visual
+                    color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
+                    html_kandungan += f"<td style='{color_style}'>{txt_p}</td><td><b>{txt_m}</b></td>"
             html_kandungan += "</tr>"
 
         html_kandungan += "<tr><td colspan='2' class='header-kelabu'><b>JUMLAH MARKAH</b></td>"
         grand_m = 0
         grand_p = 0
         for z_nam in zon_rasmi_list:
-            txt_jp = (
-                f"<b>{zon_total_p[z_nam]}</b>" if zon_total_p[z_nam] > 0 else "-"
-            )
-            txt_jm = (
-                f"<b>{zon_total_m[z_nam]}</b>" if zon_total_p[z_nam] > 0 else "-"
-            )
-            html_kandungan += f"<td>{txt_jp}</td><td>{txt_jm}</td>"
+            txt_jp = str(zon_total_p[z_nam]) if zon_total_p[z_nam] > 0 else ""
+            txt_jm = str(zon_total_m[z_nam]) if zon_total_m[z_nam] > 0 else "0"
+            color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
+            
+            html_kandungan += f"<td style='{color_style}'>{txt_jp}</td><td style='{color_style}'>{txt_jm}</td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
         html_kandungan += "</tr>"
@@ -1676,27 +1683,27 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
                 html_kandungan += f"<td colspan='2'><b>{z_pct:.2f}%</b></td>"
             else:
-                html_kandungan += f"<td colspan='2'><b>-</b></td>"
+                html_kandungan += f"<td colspan='2'><b>0.00%</b></td>"
         html_kandungan += "</tr>"
 
-        grand_pct = (grand_m / grand_p * 100) if grand_p > 0 else 0.0
+        grand_pct_str = f"{(grand_m / grand_p * 100):.2f}%" if grand_p > 0 else "0.00%"
         html_kandungan += f"""
             <tr>
                 <td colspan='2' class='header-kelabu'><b>PERATUS MARKAH KESELURUHAN</b></td>
-                <td colspan='10' style='font-size: 16px;'><b>{grand_pct:.2f}%</b></td>
+                <td colspan='10' style='font-size: 16px; text-align: center;'><b>{grand_pct_str}</b></td>
             </tr>
             </tbody>
         </table>
         <br><br>
-        <div style="display: flex; justify-content: space-between; font-family: Arial, sans-serif; color: #000000; background-color: #ffffff;">
+        <div style="display: flex; justify-content: space-between; font-family: Arial, sans-serif; color: #000000; background-color: #ffffff; padding: 0 20px;">
             <div>
-                <b>PENGESAHAN KETUA JURUAUDIT</b><br><br><br>
+                <b>PENGESAHAN<br>KETUA JURUAUDIT</b><br><br><br><br>
                 TANDATANGAN: ___________________________<br>
                 NAMA : MAZWINA HANIM BINTI ABU BAKAR<br>
                 TARIKH: ________________________________
             </div>
             <div>
-                <b>PENGESAHAN WAKIL PENGURUSAN</b><br><br><br>
+                <b>PENGESAHAN<br>WAKIL PENGURUSAN</b><br><br><br><br>
                 TANDATANGAN: ___________________________<br>
                 NAMA : _________________________________<br>
                 TARIKH: ________________________________
@@ -1704,22 +1711,19 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         </div>
         """
 
+    # Komponen Cetakan JS & HTML View
     components.html(
         f"""
         <script>
         function cetakLaporanIsolasi() {{
             var kandungan = `{html_kandungan}`;
-            var mywindow = window.open('', 'PRINT', 'height=800,width=1000');
+            var mywindow = window.open('', 'PRINT', 'height=800,width=1100');
             mywindow.document.write('<html><head><title>Laporan Audit EKSA</title>');
             mywindow.document.write('<style>');
-            mywindow.document.write('body {{ background-color: #ffffff !important; color: #000000 !important; font-family: Arial, sans-serif; padding: 20px; }}');
-            mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 13px; text-align: center; margin-top: 10px; background-color: #ffffff !important; color: #000000 !important; }}');
-            mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000000 !important; padding: 6px 8px; color: #000000 !important; background-color: #ffffff; }}');
-            mywindow.document.write('.header-induk {{ background-color: #e9d5ff !important; color: #000000 !important; }}');
-            mywindow.document.write('.header-efektif {{ background-color: #fef3c7 !important; color: #000000 !important; }}');
-            mywindow.document.write('.header-komited {{ background-color: #bfdbfe !important; color: #000000 !important; }}');
-            mywindow.document.write('.header-sepakat {{ background-color: #fca5a5 !important; color: #000000 !important; }}');
-            mywindow.document.write('.header-aktif {{ background-color: #bbf7d0 !important; color: #000000 !important; }}');
+            mywindow.document.write('@page {{ size: landscape; margin: 10mm; }}');
+            mywindow.document.write('body {{ background-color: #ffffff !important; color: #000000 !important; font-family: Arial, sans-serif; padding: 10px; }}');
+            mywindow.document.write('.jadual-laporan {{ width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; text-align: center; margin-top: 5px; background-color: #ffffff !important; color: #000000 !important; }}');
+            mywindow.document.write('.jadual-laporan th, .jadual-laporan td {{ border: 1.5px solid #000000 !important; padding: 5px; color: #000000 !important; background-color: #ffffff; }}');
             mywindow.document.write('.header-kelabu {{ background-color: #e5e7eb !important; color: #000000 !important; }}');
             mywindow.document.write('</style></head><body>');
             mywindow.document.write(kandungan);
