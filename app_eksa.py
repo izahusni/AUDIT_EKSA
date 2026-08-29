@@ -1454,7 +1454,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         "ZON AKTIF",
     ]
 
-    # Pemetaan item yang tidak berkenaan (N/A) mengikut Komponen & Zon
+    # Pemetaan item yang tidak berkenaan mengikut Komponen & Zon
     def is_na_zone(komp_key, zon_nama):
         k_upper = str(komp_key).upper()
         z_upper = str(zon_nama).upper()
@@ -1467,7 +1467,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     # Fungsi kumpul markah diperolehi & markah penuh
     def kumpul_markah_zon(zon_nama, komp_nama):
         if is_na_zone(komp_nama, zon_nama):
-            return None, None  # Penanda N/A
+            return None, None  # Penanda tidak berkenaan (-)
 
         items_tapis = dapatkan_item_tapis(komp_nama, zon_nama)
         m_penuh_standard = len(items_tapis) * 5
@@ -1501,7 +1501,6 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                                 total_m += int(m_val)
                                 count_item += 1
 
-        # Jika ada data dinilai, gunakan markah penuh item terjejas; jika belum, guna markah penuh standard zon
         total_p = (count_item * 5) if count_item > 0 else m_penuh_standard
         return total_m, total_p
 
@@ -1564,7 +1563,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 if m_dapat is None:
-                    html_kandungan += "<td style='background-color: #ffffff; color: #000000;'><b>N/A</b></td>"
+                    # Tukar N/A kepada -
+                    html_kandungan += "<td style='background-color: #ffffff; color: #000000;'><b>-</b></td>"
                 else:
                     zon_total_m[z_nam] += m_dapat
                     zon_total_p[z_nam] += m_penuh
@@ -1652,14 +1652,14 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 if m_dapat is None:
-                    html_kandungan += "<td style='color: #ff0000; font-weight: bold;'>N/A</td><td></td>"
+                    # Tukar N/A kepada -
+                    html_kandungan += "<td style='color: #ff0000; font-weight: bold;'>-</td><td></td>"
                 else:
                     zon_total_m[z_nam] += m_dapat
                     zon_total_p[z_nam] += m_penuh
                     txt_p = str(m_penuh)
                     txt_m = str(m_dapat) if m_dapat > 0 else ""
-                    
-                    # Tetapan warna teks bagi markah penuh mengikut sampel visual
+
                     color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
                     html_kandungan += f"<td style='{color_style}'>{txt_p}</td><td><b>{txt_m}</b></td>"
             html_kandungan += "</tr>"
@@ -1671,7 +1671,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             txt_jp = str(zon_total_p[z_nam]) if zon_total_p[z_nam] > 0 else ""
             txt_jm = str(zon_total_m[z_nam]) if zon_total_m[z_nam] > 0 else "0"
             color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
-            
+
             html_kandungan += f"<td style='{color_style}'>{txt_jp}</td><td style='{color_style}'>{txt_jm}</td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
