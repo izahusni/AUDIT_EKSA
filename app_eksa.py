@@ -1228,7 +1228,7 @@ elif menu_paparan == "📊 Markah Audit":
             )
 
 # ==========================================
-# PAPARAN 3: RUMUSAN MARKAH TERPERINCI
+# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (DIBAIKI)
 # ==========================================
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
@@ -1316,6 +1316,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     current_sub = ""
     jumlah_skor_zon = {z: 0 for z in zon_rasmi_list}
     
+    # Ekstrak kod komponen utama (cth: "KOMPONEN A")
     target_komp_code = pilih_komp.split(":")[0].strip().upper() if ":" in pilih_komp else pilih_komp.strip().upper()
 
     for item in data_eksa[pilih_komp]:
@@ -1338,40 +1339,34 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
             if item_dig not in item_nums_zon:
                 skor_dicatat[z] = "-"
             else:
-                skor_semasa = ""
+                skor_semasa = None
 
-                zon_key_match = None
-                for z_k in st.session_state.pangkalan_data.keys():
-                    if str(z_k).strip().upper() == str(z).strip().upper():
-                        zon_key_match = z_k
-                        break
-
-                if zon_key_match:
-                    dict_zon = st.session_state.pangkalan_data[zon_key_match]
-                    for aud_name, data_auditor in dict_zon.items():
-                        
-                        komp_key_match = None
-                        for k_k in data_auditor.keys():
-                            k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
-                            if target_komp_code == k_code:
-                                komp_key_match = k_k
+                # Cari padanan Zon secara fleksibel
+                for z_k, dict_auditor in st.session_state.pangkalan_data.items():
+                    if z.strip().upper() in z_k.strip().upper() or z_k.strip().upper() in z.strip().upper():
+                        for aud_name, data_auditor in dict_auditor.items():
+                            if aud_name.startswith("_"):
+                                continue
+                            
+                            # Cari padanan Komponen
+                            for k_k, dict_item in data_auditor.items():
+                                k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
+                                if target_komp_code in k_code or k_code in target_komp_code:
+                                    # Cari padanan Item Number
+                                    for i_k, i_v in dict_item.items():
+                                        if "".join(filter(str.isdigit, str(i_k))) == item_dig:
+                                            if isinstance(i_v, dict):
+                                                m_val = i_v.get("Markah")
+                                                if m_val is not None and str(m_val).isdigit():
+                                                    skor_semasa = int(m_val)
+                                                    jumlah_skor_zon[z] += skor_semasa
+                                                    break
+                                    if skor_semasa is not None:
+                                        break
+                            if skor_semasa is not None:
                                 break
 
-                        if komp_key_match:
-                            dict_item = data_auditor[komp_key_match]
-                            for i_k, i_v in dict_item.items():
-                                if "".join(filter(str.isdigit, str(i_k))) == item_dig:
-                                    if isinstance(i_v, dict):
-                                        skor_val = i_v.get("Markah", "")
-                                        skor_semasa = skor_val
-
-                                        if str(skor_val).isdigit():
-                                            jumlah_skor_zon[z] += int(skor_val)
-                                    break
-                            if skor_semasa != "":
-                                break
-
-                skor_dicatat[z] = skor_semasa if (skor_semasa != "" and skor_semasa is not None) else "-"
+                skor_dicatat[z] = str(skor_semasa) if skor_semasa is not None else "-"
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
@@ -1390,7 +1385,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 {kolum_markah_html}
 </tr>"""
 
-    # Baris Jumlah Markah Keseluruhan di bahagian bawah jadual
+    # Baris Jumlah Markah Keseluruhan
     kolum_jumlah_html = ""
     for z in zon_rasmi_list:
         kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px; background-color: #fdebd0;">{jumlah_skor_zon[z]}</td>\n'
@@ -1403,7 +1398,6 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     html_jadual_rumusan += "</tbody></table></div>"
 
     st.markdown(html_jadual_rumusan, unsafe_allow_html=True)
-
 # ==========================================
 # PAPARAN 4: LAPORAN PENUH & CETAKAN
 # ==========================================
