@@ -475,36 +475,40 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                             if deskripsi and deskripsi != "nan":
                                 st.write(f"**Skor {skor}:** {deskripsi}")
 
-                    rekod_lama = data_semasa[komponen_pilihan].get(
-                        item_no_str,
-                        data_semasa[komponen_pilihan].get(
-                            item_dig,
-                            {
-                                "Markah": 5,
-                                "Ulasan": "",
-                                "Senarai_Gambar": [],
-                                "Ulasan_Susulan": "",
-                                "Gambar_Susulan": None,
-                                "Tarikh_Susulan": datetime.date.today(),
-                            },
-                        ),
-                    )
+          # Gantikan penetapan rekod_lama dan radio markah dalam Form
+rekod_lama = data_semasa[komponen_pilihan].get(
+    item_no_str,
+    data_semasa[komponen_pilihan].get(
+        item_dig,
+        {
+            "Markah": None,  # Ubah daripada 5 kepada None
+            "Ulasan": "",
+            "Senarai_Gambar": [],
+            "Ulasan_Susulan": "",
+            "Gambar_Susulan": None,
+            "Tarikh_Susulan": datetime.date.today(),
+        },
+    ),
+)
 
-                    col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
-                    with col1:
-                        pilihan_markah = [1, 2, 3, 4, 5]
-                        val_lama = rekod_lama["Markah"]
-                        if str(val_lama).isdigit():
-                            val_lama = int(val_lama)
-                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 4
+col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
+with col1:
+    pilihan_markah = [1, 2, 3, 4, 5]
+    val_lama = rekod_lama["Markah"]
 
-                        markah = st.radio(
-                            "Markah",
-                            options=pilihan_markah,
-                            index=idx_default,
-                            horizontal=True,
-                            key=f"mark_{zon_audit}_{komponen_pilihan}_{item_no_str}",
-                        )
+    # Jika belum diisi/key-in, index diletakkan pada None (tiada pilihan lalai)
+    if str(val_lama).isdigit() and int(val_lama) in pilihan_markah:
+        idx_default = pilihan_markah.index(int(val_lama))
+    else:
+        idx_default = None  # Memaksa juruaudit memilih markah secara manual
+
+    markah = st.radio(
+        "Markah",
+        options=pilihan_markah,
+        index=idx_default,
+        horizontal=True,
+        key=f"mark_{zon_audit}_{komponen_pilihan}_{item_no_str}",
+    )
                     with col2:
                         ulasan = st.text_input(
                             "Ulasan/Komen Asal",
