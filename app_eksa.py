@@ -1464,16 +1464,16 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             return "ZON INDUK" in z_upper
         return False
 
-    # Fungsi kumpul markah diperolehi & markah penuh
+    # Fungsi kumpul markah diperolehi & markah penuh secara automatik berdasarkan Modul Kerja / Rubrik
     def kumpul_markah_zon(zon_nama, komp_nama):
         if is_na_zone(komp_nama, zon_nama):
             return None, None  # Penanda tidak berkenaan (-)
 
+        # Kira Markah Penuh Automatik mengikut item aktif di Modul Kerja (Borang)
         items_tapis = dapatkan_item_tapis(komp_nama, zon_nama)
-        m_penuh_standard = len(items_tapis) * 5
+        m_penuh_automatik = len(items_tapis) * 5
 
         total_m = 0
-        count_item = 0
 
         zon_match = None
         for z_k in st.session_state.pangkalan_data.keys():
@@ -1499,10 +1499,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                             m_val = d_item["Markah"]
                             if str(m_val).isdigit():
                                 total_m += int(m_val)
-                                count_item += 1
 
-        total_p = (count_item * 5) if count_item > 0 else m_penuh_standard
-        return total_m, total_p
+        return total_m, m_penuh_automatik
 
     # Dapatkan Gambar Logo jika wujud
     logo_base64_str = ""
@@ -1563,12 +1561,11 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 if m_dapat is None:
-                    # Tukar N/A kepada -
                     html_kandungan += "<td style='background-color: #ffffff; color: #000000;'><b>-</b></td>"
                 else:
                     zon_total_m[z_nam] += m_dapat
                     zon_total_p[z_nam] += m_penuh
-                    pct_str = f"{(m_dapat / m_penuh * 100):.2f}%" if m_penuh > 0 else ""
+                    pct_str = f"{(m_dapat / m_penuh * 100):.2f}%" if m_penuh > 0 else "0.00%"
                     html_kandungan += f"<td><b>{pct_str}</b></td>"
             html_kandungan += "</tr>"
 
@@ -1580,12 +1577,12 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
                 html_kandungan += f"<td><b>{z_pct:.2f}%</b></td>"
             else:
-                html_kandungan += f"<td><b></b></td>"
+                html_kandungan += f"<td><b>-</b></td>"
             grand_m += zon_total_m[z_nam]
             grand_p += zon_total_p[z_nam]
         html_kandungan += "</tr>"
 
-        grand_pct_str = f"{(grand_m / grand_p * 100):.2f}%" if grand_p > 0 else ""
+        grand_pct_str = f"{(grand_m / grand_p * 100):.2f}%" if grand_p > 0 else "0.00%"
         html_kandungan += f"""
             <tr>
                 <td colspan='2' class='header-kelabu'><b>PERATUS MARKAH KESELURUHAN</b></td>
@@ -1652,13 +1649,12 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             for z_nam in zon_rasmi_list:
                 m_dapat, m_penuh = kumpul_markah_zon(z_nam, nam_komp_full)
                 if m_dapat is None:
-                    # Tukar N/A kepada -
-                    html_kandungan += "<td style='color: #ff0000; font-weight: bold;'>-</td><td></td>"
+                    html_kandungan += "<td style='color: #ff0000; font-weight: bold;'>-</td><td><b>-</b></td>"
                 else:
                     zon_total_m[z_nam] += m_dapat
                     zon_total_p[z_nam] += m_penuh
                     txt_p = str(m_penuh)
-                    txt_m = str(m_dapat) if m_dapat > 0 else ""
+                    txt_m = str(m_dapat)
 
                     color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
                     html_kandungan += f"<td style='{color_style}'>{txt_p}</td><td><b>{txt_m}</b></td>"
@@ -1668,8 +1664,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         grand_m = 0
         grand_p = 0
         for z_nam in zon_rasmi_list:
-            txt_jp = str(zon_total_p[z_nam]) if zon_total_p[z_nam] > 0 else ""
-            txt_jm = str(zon_total_m[z_nam]) if zon_total_m[z_nam] > 0 else "0"
+            txt_jp = str(zon_total_p[z_nam]) if zon_total_p[z_nam] > 0 else "-"
+            txt_jm = str(zon_total_m[z_nam]) if zon_total_p[z_nam] > 0 else "-"
             color_style = "color: #ff0000; font-weight: bold;" if z_nam != "ZON INDUK" else "font-weight: bold;"
 
             html_kandungan += f"<td style='{color_style}'>{txt_jp}</td><td style='{color_style}'>{txt_jm}</td>"
@@ -1683,7 +1679,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                 z_pct = (zon_total_m[z_nam] / zon_total_p[z_nam]) * 100
                 html_kandungan += f"<td colspan='2'><b>{z_pct:.2f}%</b></td>"
             else:
-                html_kandungan += f"<td colspan='2'><b>0.00%</b></td>"
+                html_kandungan += f"<td colspan='2'><b>-</b></td>"
         html_kandungan += "</tr>"
 
         grand_pct_str = f"{(grand_m / grand_p * 100):.2f}%" if grand_p > 0 else "0.00%"
