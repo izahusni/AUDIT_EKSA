@@ -58,7 +58,7 @@ def senkron_data_dari_gsheets():
                     z = str(row["Zon"])
                     j = str(row["Juruaudit"])
                     k = str(row["Komponen"])
-                    no_i = str(row["No_Item"])
+                    no_i = str(row["No_Item"]).strip()
 
                     if z not in st.session_state.pangkalan_data:
                         st.session_state.pangkalan_data[z] = {}
@@ -79,8 +79,15 @@ def senkron_data_dari_gsheets():
                         if col_name in row and pd.notna(row[col_name]):
                             senarai_gbr.append(str(row[col_name]))
 
+                    # Penukaran markah ke integer jika nombor
+                    raw_markah = row["Markah"]
+                    if pd.notna(raw_markah) and str(raw_markah).isdigit():
+                        markah_val = int(raw_markah)
+                    else:
+                        markah_val = str(raw_markah) if pd.notna(raw_markah) else "N/A"
+
                     st.session_state.pangkalan_data[z][j][k][no_i] = {
-                        "Markah": int(row["Markah"]),
+                        "Markah": markah_val,
                         "Ulasan": (
                             str(row["Ulasan"]) if pd.notna(row["Ulasan"]) else ""
                         ),
@@ -212,7 +219,7 @@ def muat_data_eksa(file_path):
                 item_list.append(
                     {
                         "Subtopik": current_subtopic,
-                        "No": no_item,
+                        "No": str(no_item),
                         "Perkara": perkara,
                         "Rubrik": rubrik,
                     }
@@ -304,7 +311,7 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
 
         if rekod_komponen:
             for item in items_komp:
-                no_i = str(item["No"])
+                no_i = str(item["No"]).strip()
                 if no_i in rekod_komponen:
                     val = rekod_komponen[no_i]
                     if isinstance(val, dict):
@@ -429,6 +436,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 current_displayed_subtopic = ""
 
                 for item in items:
+                    item_no_str = str(item["No"]).strip()
                     if item["Subtopik"] != current_displayed_subtopic:
                         st.markdown(
                             f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>",
@@ -436,10 +444,10 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         )
                         current_displayed_subtopic = item["Subtopik"]
 
-                    st.markdown(f"**Item {item['No']}: {item['Perkara']}**")
+                    st.markdown(f"**Item {item_no_str}: {item['Perkara']}**")
 
                     with st.expander(
-                        f"Lihat Rubrik Pemarkahan untuk Item {item['No']}"
+                        f"Lihat Rubrik Pemarkahan untuk Item {item_no_str}"
                     ):
                         st.write("**Skor N/A:** Dikecualikan / Tidak Berkaitan Bagi Zon Ini")
                         for skor, deskripsi in item["Rubrik"].items():
@@ -447,7 +455,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 st.write(f"**Skor {skor}:** {deskripsi}")
 
                     rekod_lama = data_semasa[komponen_pilihan].get(
-                        item["No"],
+                        item_no_str,
                         {
                             "Markah": "N/A",
                             "Ulasan": "",
@@ -462,27 +470,30 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     with col1:
                         pilihan_markah = [1, 2, 3, 4, 5, "N/A"]
                         val_lama = rekod_lama["Markah"]
-                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 3
+                        # Tukar ke int jika string digit
+                        if str(val_lama).isdigit():
+                            val_lama = int(val_lama)
+                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 5
 
                         markah = st.radio(
                             "Markah",
                             options=pilihan_markah,
                             index=idx_default,
                             horizontal=True,
-                            key=f"mark_{zon_audit}_{komponen_pilihan}_{item['No']}",
+                            key=f"mark_{zon_audit}_{komponen_pilihan}_{item_no_str}",
                         )
                     with col2:
                         ulasan = st.text_input(
                             "Ulasan/Komen Asal",
                             value=rekod_lama["Ulasan"],
-                            key=f"ulasan_{zon_audit}_{komponen_pilihan}_{item['No']}",
+                            key=f"ulasan_{zon_audit}_{komponen_pilihan}_{item_no_str}",
                         )
                     with col3:
                         gambar_muat_naik_list = st.file_uploader(
                             "Muat Naik Bukti (Maksima 5 Gambar)",
                             type=["png", "jpg", "jpeg"],
                             accept_multiple_files=True,
-                            key=f"gambar_{zon_audit}_{komponen_pilihan}_{item['No']}",
+                            key=f"gambar_{zon_audit}_{komponen_pilihan}_{item_no_str}",
                         )
 
                         gambar_disimpan_list = rekod_lama.get("Senarai_Gambar", [])
@@ -505,7 +516,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                                 with cols_g[idx_img]:
                                     st.image(img_b64, use_container_width=True)
 
-                    data_semasa[komponen_pilihan][item["No"]] = {
+                    data_semasa[komponen_pilihan][item_no_str] = {
                         "Markah": markah,
                         "Ulasan": ulasan,
                         "Senarai_Gambar": gambar_disimpan_list,
@@ -748,10 +759,11 @@ elif menu_paparan == "📊 Markah Audit":
                     rekod_komp = rekod_auditor.get(komp, {})
 
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]) for x in item_sah_zon]
+                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
 
                     for no_item, data in list(rekod_komp.items()):
-                        if str(no_item) not in no_item_sah_zon:
+                        no_item_str = str(no_item).strip()
+                        if no_item_str not in no_item_sah_zon:
                             continue
 
                         if isinstance(data, dict):
@@ -759,16 +771,16 @@ elif menu_paparan == "📊 Markah Audit":
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == str(no_item).strip()
+                                if str(orig["No"]).strip() == no_item_str
                             ]
                             perkara_txt = (
                                 padanan_item[0]["Perkara"]
                                 if padanan_item
-                                else f"Item {no_item}"
+                                else f"Item {no_item_str}"
                             )
 
                             with st.expander(
-                                f"📌 [{zon} - {lok_khusus}] {komp} - Item {no_item}: {perkara_txt} (Markah: {data['Markah']}/5)"
+                                f"📌 [{zon} - {lok_khusus}] {komp} - Item {no_item_str}: {perkara_txt} (Markah: {data['Markah']}/5)"
                             ):
                                 c_info, c_edit, c_del = st.columns([3, 1, 1])
 
@@ -791,10 +803,12 @@ elif menu_paparan == "📊 Markah Audit":
                                 # BUTANG SUNTING (EDIT)
                                 with c_edit:
                                     with st.popover("✏️ Edit"):
-                                        st.markdown(f"**Edit Item {no_item}**")
+                                        st.markdown(f"**Edit Item {no_item_str}**")
 
                                         pilihan_edit = [1, 2, 3, 4, 5, "N/A"]
                                         val_m = data.get("Markah", "N/A")
+                                        if str(val_m).isdigit():
+                                            val_m = int(val_m)
                                         idx_m = pilihan_edit.index(val_m) if val_m in pilihan_edit else 0
 
                                         markah_baru = st.radio(
@@ -802,32 +816,32 @@ elif menu_paparan == "📊 Markah Audit":
                                             pilihan_edit,
                                             index=idx_m,
                                             horizontal=True,
-                                            key=f"edit_m_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                            key=f"edit_m_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                         )
                                         ulasan_baru = st.text_input(
                                             "Ulasan Baharu",
                                             value=data["Ulasan"],
-                                            key=f"edit_u_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                            key=f"edit_u_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                         )
                                         gambar_baru_list = st.file_uploader(
                                             "Tukar Gambar (Max 5)",
                                             type=["png", "jpg", "jpeg"],
                                             accept_multiple_files=True,
-                                            key=f"edit_g_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                            key=f"edit_g_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                         )
 
                                         if st.button(
                                             "💾 Simpan Kemas Kini",
-                                            key=f"btn_save_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                            key=f"btn_save_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                         ):
                                             st.session_state.pangkalan_data[zon][
                                                 nm_auditor
-                                            ][komp][no_item][
+                                            ][komp][no_item_str][
                                                 "Markah"
                                             ] = markah_baru
                                             st.session_state.pangkalan_data[zon][
                                                 nm_auditor
-                                            ][komp][no_item][
+                                            ][komp][no_item_str][
                                                 "Ulasan"
                                             ] = ulasan_baru
 
@@ -843,7 +857,7 @@ elif menu_paparan == "📊 Markah Audit":
 
                                             st.session_state.pangkalan_data[zon][
                                                 nm_auditor
-                                            ][komp][no_item][
+                                            ][komp][no_item_str][
                                                 "Senarai_Gambar"
                                             ] = gbr_updated_list
 
@@ -867,7 +881,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                             df_g[
                                                                 "No_Item"
                                                             ].astype(str)
-                                                            == str(no_item)
+                                                            == no_item_str
                                                         )
                                                     )
                                                     df_g.loc[
@@ -903,12 +917,12 @@ elif menu_paparan == "📊 Markah Audit":
                                 with c_del:
                                     if st.button(
                                         "🗑️ Padam",
-                                        key=f"del_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                        key=f"del_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                         type="primary",
                                     ):
                                         del st.session_state.pangkalan_data[
                                             zon
-                                        ][nm_auditor][komp][no_item]
+                                        ][nm_auditor][komp][no_item_str]
 
                                         if conn is not None:
                                             try:
@@ -931,7 +945,7 @@ elif menu_paparan == "📊 Markah Audit":
                                                             df_g[
                                                                 "No_Item"
                                                             ].astype(str)
-                                                            == str(no_item)
+                                                            == no_item_str
                                                         )
                                                     )
                                                 ]
@@ -970,19 +984,23 @@ elif menu_paparan == "📊 Markah Audit":
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]) for x in item_sah_zon]
+                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
 
                     for no_item, data in rekod_komp.items():
+                        no_item_str = str(no_item).strip()
+                        m_val = data.get("Markah") if isinstance(data, dict) else None
+                        
+                        # Semakan selamat markah 5
                         if (
-                            str(no_item) in no_item_sah_zon
-                            and isinstance(data, dict)
-                            and data.get("Markah") == 5
+                            no_item_str in no_item_sah_zon
+                            and str(m_val).isdigit()
+                            and int(m_val) == 5
                         ):
                             ada_cemerlang = True
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == str(no_item).strip()
+                                if str(orig["No"]).strip() == no_item_str
                             ]
                             subtopik_item = (
                                 padanan_item[0]["Subtopik"]
@@ -992,11 +1010,11 @@ elif menu_paparan == "📊 Markah Audit":
                             perkara_item = (
                                 padanan_item[0]["Perkara"]
                                 if padanan_item
-                                else f"Item {no_item}"
+                                else f"Item {no_item_str}"
                             )
 
                             st.success(
-                                f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} \n*(Oleh: {nm_auditor}) | Ulasan: {data['Ulasan'] if data['Ulasan'] else 'Memuaskan'}*"
+                                f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item_str}** \n{perkara_item} \n*(Oleh: {nm_auditor}) | Ulasan: {data['Ulasan'] if data['Ulasan'] else 'Memuaskan'}*"
                             )
 
         if not ada_cemerlang:
@@ -1028,19 +1046,24 @@ elif menu_paparan == "📊 Markah Audit":
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]) for x in item_sah_zon]
+                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
 
                     for no_item, data in rekod_komp.items():
+                        no_item_str = str(no_item).strip()
+                        m_val = data.get("Markah") if isinstance(data, dict) else None
+                        
+                        # Semakan selamat markah <= 2 (Penukaran str ke int)
                         if (
-                            str(no_item) in no_item_sah_zon
+                            no_item_str in no_item_sah_zon
                             and isinstance(data, dict)
-                            and data.get("Markah", 5) <= 2
+                            and str(m_val).isdigit()
+                            and int(m_val) <= 2
                         ):
                             ada_kelemahan = True
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == str(no_item).strip()
+                                if str(orig["No"]).strip() == no_item_str
                             ]
                             subtopik_item = (
                                 padanan_item[0]["Subtopik"]
@@ -1050,11 +1073,11 @@ elif menu_paparan == "📊 Markah Audit":
                             perkara_item = (
                                 padanan_item[0]["Perkara"]
                                 if padanan_item
-                                else f"Item {no_item}"
+                                else f"Item {no_item_str}"
                             )
 
                             st.error(
-                                f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item}** \n{perkara_item} *(Dinilai oleh: {nm_auditor})*"
+                                f"**[{zon} - {lok_khusus}] {subtopik_item} - Item {no_item_str}** \n{perkara_item} *(Dinilai oleh: {nm_auditor})*"
                             )
                             col_sebelum, col_selepas = st.columns(2)
 
@@ -1082,7 +1105,7 @@ elif menu_paparan == "📊 Markah Audit":
                             with col_selepas:
                                 st.markdown("#### 🟢 Tindakan Penambahbaikan")
                                 with st.form(
-                                    key=f"susulan_m_{zon}_{nm_auditor}_{komp}_{no_item}"
+                                    key=f"susulan_m_{zon}_{nm_auditor}_{komp}_{no_item_str}"
                                 ):
                                     tarikh_baru = st.date_input(
                                         "Tarikh Tindakan:",
@@ -1099,7 +1122,7 @@ elif menu_paparan == "📊 Markah Audit":
                                     gambar_baru_muat_naik = st.file_uploader(
                                         "Muat Naik Gambar (Selepas)",
                                         type=["png", "jpg", "jpeg"],
-                                        key=f"gambar_susulan_m_{zon}_{nm_auditor}_{komp}_{no_item}",
+                                        key=f"gambar_susulan_m_{zon}_{nm_auditor}_{komp}_{no_item_str}",
                                     )
                                     simpan_susulan = st.form_submit_button(
                                         "Simpan & Kemas Kini Susulan"
@@ -1118,17 +1141,17 @@ elif menu_paparan == "📊 Markah Audit":
                                     if simpan_susulan:
                                         st.session_state.pangkalan_data[zon][
                                             nm_auditor
-                                        ][komp][no_item][
+                                        ][komp][no_item_str][
                                             "Tarikh_Susulan"
                                         ] = tarikh_baru
                                         st.session_state.pangkalan_data[zon][
                                             nm_auditor
-                                        ][komp][no_item][
+                                        ][komp][no_item_str][
                                             "Ulasan_Susulan"
                                         ] = ulasan_baru
                                         st.session_state.pangkalan_data[zon][
                                             nm_auditor
-                                        ][komp][no_item][
+                                        ][komp][no_item_str][
                                             "Gambar_Susulan"
                                         ] = gambar_susulan_disimpan
                                         st.success(
@@ -1250,6 +1273,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     jumlah_skor_zon = {z: 0 for z in zon_rasmi_list}
 
     for item in data_eksa[pilih_komp]:
+        item_no_str = str(item["No"]).strip()
         if item["Subtopik"] != current_sub:
             total_colspan = 7 + colspan_markah
             html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='{total_colspan}'>{item['Subtopik']}</td></tr>"
@@ -1258,9 +1282,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
         skor_dicatat = {}
         for z in zon_rasmi_list:
             item_sebenar_zon = dapatkan_item_tapis(pilih_komp, z)
-            item_nums_zon = [str(x["No"]) for x in item_sebenar_zon]
+            item_nums_zon = [str(x["No"]).strip() for x in item_sebenar_zon]
 
-            if str(item["No"]) not in item_nums_zon:
+            if item_no_str not in item_nums_zon:
                 skor_dicatat[z] = "N/A"
             else:
                 skor_semasa = ""
@@ -1268,9 +1292,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                     for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
                         if (
                             pilih_komp in data_auditor
-                            and item["No"] in data_auditor[pilih_komp]
+                            and item_no_str in data_auditor[pilih_komp]
                         ):
-                            skor_val = data_auditor[pilih_komp][item["No"]].get("Markah", "")
+                            skor_val = data_auditor[pilih_komp][item_no_str].get("Markah", "")
                             skor_semasa = skor_val
 
                             if skor_val != "N/A" and str(skor_val).isdigit():
@@ -1286,7 +1310,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
             )
 
         html_jadual_rumusan += f"""<tr>
-<td class="center-text"><b>{item['No']}</b></td>
+<td class="center-text"><b>{item_no_str}</b></td>
 <td>{item['Perkara']}</td>
 <td>{item['Rubrik'].get(1, '')}</td>
 <td>{item['Rubrik'].get(2, '')}</td>
