@@ -175,7 +175,7 @@ def senkron_data_dari_gsheets():
                     if pd.notna(raw_markah) and str(raw_markah).isdigit():
                         markah_val = int(raw_markah)
                     else:
-                        markah_val = str(raw_markah) if pd.notna(raw_markah) else "N/A"
+                        markah_val = "-"
 
                     st.session_state.pangkalan_data[z][j][k][no_i] = {
                         "Markah": markah_val,
@@ -298,7 +298,7 @@ def dapatkan_item_tapis(komponen, zon):
     return filtered_items
 
 
-# --- FUNGSI KIRA PRESTASI (MENGABAIKAN N/A) ---
+# --- FUNGSI KIRA PRESTASI ---
 def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
@@ -336,7 +336,7 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
                     val = rekod_komponen[match_key]
                     if isinstance(val, dict):
                         m_val = val.get("Markah")
-                        if m_val != "N/A" and str(m_val).isdigit():
+                        if str(m_val).isdigit():
                             jumlah_markah += int(m_val)
                             jumlah_item_dinilai += 1
 
@@ -471,7 +471,6 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                     with st.expander(
                         f"Lihat Rubrik Pemarkahan untuk Item {item_no_str}"
                     ):
-                        st.write("**Skor N/A:** Dikecualikan / Tidak Berkaitan Bagi Zon Ini")
                         for skor, deskripsi in item["Rubrik"].items():
                             if deskripsi and deskripsi != "nan":
                                 st.write(f"**Skor {skor}:** {deskripsi}")
@@ -481,7 +480,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         data_semasa[komponen_pilihan].get(
                             item_dig,
                             {
-                                "Markah": "N/A",
+                                "Markah": 5,
                                 "Ulasan": "",
                                 "Senarai_Gambar": [],
                                 "Ulasan_Susulan": "",
@@ -493,11 +492,11 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
                     col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
                     with col1:
-                        pilihan_markah = [1, 2, 3, 4, 5, "N/A"]
+                        pilihan_markah = [1, 2, 3, 4, 5]
                         val_lama = rekod_lama["Markah"]
                         if str(val_lama).isdigit():
                             val_lama = int(val_lama)
-                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 5
+                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 4
 
                         markah = st.radio(
                             "Markah",
@@ -841,11 +840,11 @@ elif menu_paparan == "📊 Markah Audit":
                                     with st.popover("✏️ Edit"):
                                         st.markdown(f"**Edit Item {no_item_str}**")
 
-                                        pilihan_edit = [1, 2, 3, 4, 5, "N/A"]
-                                        val_m = data.get("Markah", "N/A")
+                                        pilihan_edit = [1, 2, 3, 4, 5]
+                                        val_m = data.get("Markah", 5)
                                         if str(val_m).isdigit():
                                             val_m = int(val_m)
-                                        idx_m = pilihan_edit.index(val_m) if val_m in pilihan_edit else 0
+                                        idx_m = pilihan_edit.index(val_m) if val_m in pilihan_edit else 4
 
                                         markah_baru = st.radio(
                                             "Markah Baharu",
@@ -1351,7 +1350,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
             ]
 
             if item_dig not in item_nums_zon:
-                skor_dicatat[z] = "N/A"
+                skor_dicatat[z] = "-"
             else:
                 skor_semasa = ""
 
@@ -1382,13 +1381,13 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                                         skor_val = i_v.get("Markah", "")
                                         skor_semasa = skor_val
 
-                                        if skor_val != "N/A" and str(skor_val).isdigit():
+                                        if str(skor_val).isdigit():
                                             jumlah_skor_zon[z] += int(skor_val)
                                     break
                             if skor_semasa != "":
                                 break
 
-                skor_dicatat[z] = skor_semasa if skor_semasa != "" else "N/A"
+                skor_dicatat[z] = skor_semasa if skor_semasa != "" else "-"
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
@@ -1455,7 +1454,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         "ZON AKTIF",
     ]
 
-    # FUNGSI KUMPUL MARKAH ZON (MENGABAIKAN N/A)
+    # FUNGSI KUMPUL MARKAH ZON
     def kumpul_markah_zon(zon_nama, komp_nama):
         total_m = 0
         count_item = 0
@@ -1482,7 +1481,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                     for no_i, d_item in data_aud[komp_match].items():
                         if isinstance(d_item, dict) and "Markah" in d_item:
                             m_val = d_item["Markah"]
-                            if m_val != "N/A" and str(m_val).isdigit():
+                            if str(m_val).isdigit():
                                 total_m += int(m_val)
                                 count_item += 1
 
