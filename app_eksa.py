@@ -298,7 +298,7 @@ def dapatkan_item_tapis(komponen, zon):
     return filtered_items
 
 
-# --- FUNGSI KIRA PRESTASI ---
+# --- FUNGSI KIRA PRESTASI (KEMAS KINI) ---
 def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
@@ -310,10 +310,18 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
 
     for komp in komponen_dipilih:
         rekod_komponen = {}
-        komp_code = komp.split(":")[0].strip().upper() if ":" in komp else komp.strip().upper()
-        
+        komp_code = (
+            komp.split(":")[0].strip().upper()
+            if ":" in komp
+            else komp.strip().upper()
+        )
+
         for k_entry, v_entry in data_individu.items():
-            k_entry_code = k_entry.split(":")[0].strip().upper() if ":" in k_entry else k_entry.strip().upper()
+            k_entry_code = (
+                k_entry.split(":")[0].strip().upper()
+                if ":" in k_entry
+                else k_entry.strip().upper()
+            )
             if komp_code == k_entry_code:
                 rekod_komponen = v_entry
                 break
@@ -336,7 +344,8 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
                     val = rekod_komponen[match_key]
                     if isinstance(val, dict):
                         m_val = val.get("Markah")
-                        if str(m_val).isdigit():
+                        # HANYA KIRA JIKA MARKAH TELAH DIISI/KEY-IN (BERBENTUK DIGIT)
+                        if m_val is not None and str(m_val).isdigit():
                             jumlah_markah += int(m_val)
                             jumlah_item_dinilai += 1
 
