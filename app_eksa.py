@@ -48,7 +48,7 @@ def gambar_ke_base64(file_obj, max_size=(300, 300), quality=50):
         return None
 
 
-# --- 3. FUNGSI BACAAN EXCEL ---
+# --- 3. FUNGSI BACAAN EXCEL DUKUNGAN PENUH EXCEL ---
 @st.cache_data
 def muat_data_eksa(file_path):
     xls = pd.ExcelFile(file_path)
@@ -64,48 +64,50 @@ def muat_data_eksa(file_path):
         current_subtopic = "KRITERIA UMUM"
 
         for index, row in df.iterrows():
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
-                    if isinstance(val, str) and re.match(
-                        r"^[A-Z]\d+\)", str(val).strip()
-                    ):
-                        current_subtopic = str(val).strip()
-                        break
+            # Cari tajuk subtopik (contoh: A1) DASAR EKSA, B1) LANTAI, dll.)
+            for col_idx in range(len(row)):
+                val = row.iloc[col_idx]
+                if pd.notna(val) and isinstance(val, str) and re.match(r"^[A-Z]\d+\)", str(val).strip()):
+                    current_subtopic = str(val).strip()
+                    break
 
             no_item = None
             perkara = None
             rubrik = {}
 
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
+            # Cari nombor item dan perkara
+            for col_idx in range(len(row) - 1):
+                val = row.iloc[col_idx]
+                if pd.notna(val) and len(str(val).strip()) > 0:
+                    val_str = str(val).strip()
+                    # Pastikan nombor item nombor bulat dan elakkan baris tajuk 'ZON' / 'MARKAH'
+                    if re.match(r"^\d+$", val_str) and int(val_str) < 100:
+                        next_val = row.iloc[col_idx + 1]
+                        if (
+                            pd.notna(next_val)
+                            and isinstance(next_val, str)
+                            and len(next_val.strip()) > 3
+                            and "ZON" not in next_val.upper()
+                            and "MARKAH" not in next_val.upper()
+                        ):
+                            no_item = val_str
+                            perkara = str(next_val).strip()
 
-                    if pd.notna(val) and len(str(val).strip()) > 0:
-                        val_str = str(val).strip()
-                        if re.match(r"^[A-Z]?\d+$", val_str):
-                            next_val = row.iloc[col_idx + 1]
-
-                            if (
-                                pd.notna(next_val)
-                                and isinstance(next_val, str)
-                                and len(next_val.strip()) > 3
-                            ):
-                                no_item = val_str
-                                perkara = str(next_val).strip()
-
-                                for i in range(1, 6):
-                                    rub_idx = col_idx + 1 + i
-                                    if rub_idx < len(row):
-                                        rub_val = str(row.iloc[rub_idx]).strip()
-                                        rubrik[i] = (
-                                            rub_val if rub_val != "nan" else ""
-                                        )
+                            # Ekstrak Rubrik 1 hingga 5
+                            for i in range(1, 6):
+                                rub_col = col_idx + 1 + i
+                                if rub_col < len(row):
+                                    r_val = row.iloc[rub_col]
+                                    if pd.notna(r_val):
+                                        r_str = str(r_val).strip()
+                                        rubrik[i] = r_str if r_str.lower() != "nan" else ""
                                     else:
                                         rubrik[i] = ""
-                                break
+                                else:
+                                    rubrik[i] = ""
+                            break
 
-            if no_item:
+            if no_item and perkara:
                 item_list.append(
                     {
                         "Subtopik": current_subtopic,
@@ -249,7 +251,7 @@ st.markdown(
 )
 
 
-# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON ---
+# --- FUNGSI PENAPISAN ITEM MENGIKUT ZON (BERDASARKAN EXCEL SEBENAR) ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
     zon_upper = str(zon).upper()
@@ -257,33 +259,33 @@ def dapatkan_item_tapis(komponen, zon):
 
     if "KOMPONEN B" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["12", "13", "15"]
+            item_dikecualikan = ["39", "40", "41", "42", "43", "44", "45", "46", "49", "50", "51"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["11", "14", "16"]
+            item_dikecualikan = ["32", "33", "34", "35", "36", "37", "38", "47", "48", "52", "53"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
+            item_dikecualikan = ["32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47", "48", "49", "50", "51", "52", "53"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["11", "13", "14", "15", "16"]
+            item_dikecualikan = ["32", "33", "34", "35", "36", "37", "38", "45", "46", "47", "48", "49", "50", "51", "52", "53"]
 
     elif "KOMPONEN C" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["5", "6", "7", "8"]
+            item_dikecualikan = ["14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "6", "7"]
+            item_dikecualikan = ["1", "2", "3", "16", "17", "18", "19", "20", "21", "22", "23"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "8"]
+            item_dikecualikan = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "14", "15", "24", "25"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "5", "6", "7", "8"]
+            item_dikecualikan = ["1", "2", "3", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25"]
 
     elif "KOMPONEN D" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["3", "4", "5"]
+            item_dikecualikan = ["5", "6", "7", "8", "9", "10"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "5", "6"]
+            item_dikecualikan = ["1", "2", "3", "4", "5", "6", "9", "10", "11", "12"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["1", "5", "6"]
+            item_dikecualikan = ["1", "2", "9", "10", "11", "12"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["1", "2", "3", "4", "6"]
+            item_dikecualikan = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
 
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
@@ -316,7 +318,7 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
                 rekod_komponen = v_entry
                 break
 
-        items_komp = data_eksa.get(komp, [])
+        items_komp = dapatkan_item_tapis(komp, zon)
 
         jumlah_markah = 0
         jumlah_item_dinilai = 0
@@ -442,13 +444,13 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
             f"**Zon:** {zon_audit} | **Lokasi:** {lokasi_khusus} | **Juruaudit:** {nama_juruaudit}"
         )
 
-        items = data_eksa.get(komponen_pilihan, [])
+        items = dapatkan_item_tapis(komponen_pilihan, zon_audit)
 
         if komponen_pilihan not in data_semasa:
             data_semasa[komponen_pilihan] = {}
 
         if not items:
-            st.info("Tiada item dijumpai bagi komponen ini.")
+            st.info("Tiada item dijumpai bagi komponen ini pada zon yang dipilih.")
         else:
             with st.form(key=f"form_{komponen_pilihan}_{zon_audit}_{nama_juruaudit}"):
                 current_displayed_subtopic = ""
