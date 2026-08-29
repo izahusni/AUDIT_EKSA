@@ -144,7 +144,8 @@ def senkron_data_dari_gsheets():
                     k_raw = str(row["Komponen"]).strip().upper()
                     k = k_raw
                     for main_k in data_eksa.keys():
-                        if k_raw in main_k.upper() or main_k.upper() in k_raw:
+                        prefix_main = main_k.split(":")[0].strip().upper() if ":" in main_k else main_k.strip().upper()
+                        if k_raw in main_k.upper() or main_k.upper() in k_raw or k_raw == prefix_main:
                             k = main_k
                             break
 
@@ -156,7 +157,7 @@ def senkron_data_dari_gsheets():
                         st.session_state.pangkalan_data[z][j] = {}
 
                     st.session_state.pangkalan_data[z][j]["_lokasi_khusus"] = (
-                        str(row["Lokasi"])
+                        str(row["Lokasi"]) if pd.notna(row["Lokasi"]) else ""
                     )
 
                     if k not in st.session_state.pangkalan_data[z][j]:
@@ -254,7 +255,6 @@ def dapatkan_item_tapis(komponen, zon):
     zon_upper = str(zon).upper()
     item_dikecualikan = []
 
-    # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["12", "13", "15"]
@@ -265,7 +265,6 @@ def dapatkan_item_tapis(komponen, zon):
         elif "ZON AKTIF" in zon_upper:
             item_dikecualikan = ["11", "13", "14", "15", "16"]
 
-    # KOMPONEN C: Tempat Umum
     elif "KOMPONEN C" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["5", "6", "7", "8"]
@@ -276,7 +275,6 @@ def dapatkan_item_tapis(komponen, zon):
         elif "ZON AKTIF" in zon_upper:
             item_dikecualikan = ["1", "5", "6", "7", "8"]
 
-    # KOMPONEN D: Bilik Pembelajaran & Pengajaran
     elif "KOMPONEN D" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
             item_dikecualikan = ["3", "4", "5"]
@@ -309,7 +307,15 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     )
 
     for komp in komponen_dipilih:
-        rekod_komponen = data_individu.get(komp, {})
+        rekod_komponen = {}
+        komp_code = komp.split(":")[0].strip().upper() if ":" in komp else komp.strip().upper()
+        
+        for k_entry, v_entry in data_individu.items():
+            k_entry_code = k_entry.split(":")[0].strip().upper() if ":" in k_entry else k_entry.strip().upper()
+            if komp_code == k_entry_code:
+                rekod_komponen = v_entry
+                break
+
         items_komp = data_eksa.get(komp, [])
 
         jumlah_markah = 0
@@ -489,7 +495,7 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                         val_lama = rekod_lama["Markah"]
                         if str(val_lama).isdigit():
                             val_lama = int(val_lama)
-                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 4
+                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 5
 
                         markah = st.radio(
                             "Markah",
@@ -772,7 +778,14 @@ elif menu_paparan == "📊 Markah Audit":
                 lok_khusus = rekod_auditor.get("_lokasi_khusus", "Biasa")
 
                 for komp in senarai_komp_laporan:
-                    rekod_komp = rekod_auditor.get(komp, {})
+                    rekod_komp = {}
+                    komp_code = komp.split(":")[0].strip().upper() if ":" in komp else komp.strip().upper()
+                    
+                    for k_entry, v_entry in rekod_auditor.items():
+                        k_entry_code = k_entry.split(":")[0].strip().upper() if ":" in k_entry else k_entry.strip().upper()
+                        if komp_code == k_entry_code:
+                            rekod_komp = v_entry
+                            break
 
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
                     no_item_sah_zon = [
@@ -1003,7 +1016,14 @@ elif menu_paparan == "📊 Markah Audit":
                 lok_khusus = rekod_auditor.get("_lokasi_khusus", "Biasa")
 
                 for komp in senarai_komp_laporan:
-                    rekod_komp = rekod_auditor.get(komp, {})
+                    rekod_komp = {}
+                    komp_code = komp.split(":")[0].strip().upper() if ":" in komp else komp.strip().upper()
+                    for k_entry, v_entry in rekod_auditor.items():
+                        k_entry_code = k_entry.split(":")[0].strip().upper() if ":" in k_entry else k_entry.strip().upper()
+                        if komp_code == k_entry_code:
+                            rekod_komp = v_entry
+                            break
+
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
                     no_item_sah_zon = [
                         "".join(filter(str.isdigit, str(x["No"])))
@@ -1069,7 +1089,14 @@ elif menu_paparan == "📊 Markah Audit":
                 lok_khusus = rekod_auditor.get("_lokasi_khusus", "Biasa")
 
                 for komp in senarai_komp_laporan:
-                    rekod_komp = rekod_auditor.get(komp, {})
+                    rekod_komp = {}
+                    komp_code = komp.split(":")[0].strip().upper() if ":" in komp else komp.strip().upper()
+                    for k_entry, v_entry in rekod_auditor.items():
+                        k_entry_code = k_entry.split(":")[0].strip().upper() if ":" in k_entry else k_entry.strip().upper()
+                        if komp_code == k_entry_code:
+                            rekod_komp = v_entry
+                            break
+
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
                     no_item_sah_zon = [
                         "".join(filter(str.isdigit, str(x["No"])))
@@ -1300,6 +1327,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
     current_sub = ""
     jumlah_skor_zon = {z: 0 for z in zon_rasmi_list}
+    
+    # Ambil kod awalan komponen pilih (Contoh: "KOMPONEN A")
+    target_komp_code = pilih_komp.split(":")[0].strip().upper() if ":" in pilih_komp else pilih_komp.strip().upper()
 
     for item in data_eksa[pilih_komp]:
         item_no_str = str(item["No"]).strip()
@@ -1323,6 +1353,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
             else:
                 skor_semasa = ""
 
+                # Cari zon berpadanan
                 zon_key_match = None
                 for z_k in st.session_state.pangkalan_data.keys():
                     if str(z_k).strip().upper() == str(z).strip().upper():
@@ -1333,12 +1364,11 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                     dict_zon = st.session_state.pangkalan_data[zon_key_match]
                     for aud_name, data_auditor in dict_zon.items():
                         
+                        # Padankan komponen berasaskan Awalan (Contoh: "KOMPONEN A")
                         komp_key_match = None
                         for k_k in data_auditor.keys():
-                            if (
-                                str(pilih_komp).strip().upper() in str(k_k).strip().upper()
-                                or str(k_k).strip().upper() in str(pilih_komp).strip().upper()
-                            ):
+                            k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
+                            if target_komp_code == k_code:
                                 komp_key_match = k_k
                                 break
 
@@ -1436,13 +1466,13 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
 
         if zon_match:
             dict_zon = st.session_state.pangkalan_data[zon_match]
+            target_code = komp_nama.split(":")[0].strip().upper() if ":" in komp_nama else komp_nama.strip().upper()
+            
             for nm_aud, data_aud in dict_zon.items():
                 komp_match = None
                 for k_k in data_aud.keys():
-                    if (
-                        str(komp_nama).strip().upper() in str(k_k).strip().upper()
-                        or str(k_k).strip().upper() in str(komp_nama).strip().upper()
-                    ):
+                    k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
+                    if target_code == k_code:
                         komp_match = k_k
                         break
 
