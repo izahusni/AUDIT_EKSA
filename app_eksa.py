@@ -48,6 +48,89 @@ def gambar_ke_base64(file_obj, max_size=(300, 300), quality=50):
         return None
 
 
+# --- 3. FUNGSI BACAAN EXCEL ---
+@st.cache_data
+def muat_data_eksa(file_path):
+    xls = pd.ExcelFile(file_path)
+    data_komponen = {}
+
+    valid_sheets = [
+        s for s in xls.sheet_names if str(s).upper().startswith("KOMPONEN")
+    ]
+
+    for sheet in valid_sheets:
+        df = pd.read_excel(file_path, sheet_name=sheet)
+        item_list = []
+        current_subtopic = "KRITERIA UMUM"
+
+        for index, row in df.iterrows():
+            for col_idx in [0, 1]:
+                if col_idx < len(row):
+                    val = row.iloc[col_idx]
+                    if isinstance(val, str) and re.match(
+                        r"^[A-Z]\d+\)", str(val).strip()
+                    ):
+                        current_subtopic = str(val).strip()
+                        break
+
+            no_item = None
+            perkara = None
+            rubrik = {}
+
+            for col_idx in [0, 1]:
+                if col_idx < len(row):
+                    val = row.iloc[col_idx]
+
+                    if pd.notna(val) and len(str(val).strip()) > 0:
+                        val_str = str(val).strip()
+                        if re.match(r"^[A-Z]?\d+$", val_str):
+                            next_val = row.iloc[col_idx + 1]
+
+                            if (
+                                pd.notna(next_val)
+                                and isinstance(next_val, str)
+                                and len(next_val.strip()) > 3
+                            ):
+                                no_item = val_str
+                                perkara = str(next_val).strip()
+
+                                for i in range(1, 6):
+                                    rub_idx = col_idx + 1 + i
+                                    if rub_idx < len(row):
+                                        rub_val = str(row.iloc[rub_idx]).strip()
+                                        rubrik[i] = (
+                                            rub_val if rub_val != "nan" else ""
+                                        )
+                                    else:
+                                        rubrik[i] = ""
+                                break
+
+            if no_item:
+                item_list.append(
+                    {
+                        "Subtopik": current_subtopic,
+                        "No": str(no_item),
+                        "Perkara": perkara,
+                        "Rubrik": rubrik,
+                    }
+                )
+
+        if item_list:
+            data_komponen[sheet] = item_list
+
+    return data_komponen
+
+
+fail_excel = "8. MARKAH AUDIT EKSA.xlsx"
+try:
+    data_eksa = muat_data_eksa(fail_excel)
+except Exception:
+    st.error(
+        f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini."
+    )
+    st.stop()
+
+
 # Fungsi Membaca Data Sedia Ada Dari Google Sheets
 def senkron_data_dari_gsheets():
     if conn is not None:
@@ -55,10 +138,17 @@ def senkron_data_dari_gsheets():
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
             if not df_existing.empty:
                 for _, row in df_existing.iterrows():
-                    z = str(row["Zon"])
-                    j = str(row["Juruaudit"])
-                    k = str(row["Komponen"])
-                    no_i = str(row["No_Item"]).strip()
+                    z = str(row["Zon"]).strip().upper()
+                    j = str(row["Juruaudit"]).strip()
+                    
+                    k_raw = str(row["Komponen"]).strip().upper()
+                    k = k_raw
+                    for main_k in data_eksa.keys():
+                        if k_raw in main_k.upper() or main_k.upper() in k_raw:
+                            k = main_k
+                            break
+
+                    no_i = "".join(filter(str.isdigit, str(row["No_Item"])))
 
                     if z not in st.session_state.pangkalan_data:
                         st.session_state.pangkalan_data[z] = {}
@@ -72,14 +162,12 @@ def senkron_data_dari_gsheets():
                     if k not in st.session_state.pangkalan_data[z][j]:
                         st.session_state.pangkalan_data[z][j][k] = {}
 
-                    # Membaca 5 Gambar dari Google Sheets
                     senarai_gbr = []
                     for idx_g in range(1, 6):
                         col_name = f"Gambar_{idx_g}"
                         if col_name in row and pd.notna(row[col_name]):
                             senarai_gbr.append(str(row[col_name]))
 
-                    # Penukaran markah ke integer jika nombor
                     raw_markah = row["Markah"]
                     if pd.notna(raw_markah) and str(raw_markah).isdigit():
                         markah_val = int(raw_markah)
@@ -160,87 +248,6 @@ st.markdown(
 )
 
 
-# --- 3. FUNGSI BACAAN EXCEL ---
-@st.cache_data
-def muat_data_eksa(file_path):
-    xls = pd.ExcelFile(file_path)
-    data_komponen = {}
-
-    valid_sheets = [
-        s for s in xls.sheet_names if str(s).upper().startswith("KOMPONEN")
-    ]
-
-    for sheet in valid_sheets:
-        df = pd.read_excel(file_path, sheet_name=sheet)
-        item_list = []
-        current_subtopic = "KRITERIA UMUM"
-
-        for index, row in df.iterrows():
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
-                    if isinstance(val, str) and re.match(
-                        r"^[A-Z]\d+\)", str(val).strip()
-                    ):
-                        current_subtopic = str(val).strip()
-                        break
-
-            no_item = None
-            perkara = None
-            rubrik = {}
-
-            for col_idx in [0, 1]:
-                if col_idx < len(row):
-                    val = row.iloc[col_idx]
-
-                    if str(val).strip().isdigit():
-                        next_val = row.iloc[col_idx + 1]
-
-                        if (
-                            pd.notna(next_val)
-                            and isinstance(next_val, str)
-                            and len(next_val.strip()) > 5
-                        ):
-                            no_item = str(val).strip()
-                            perkara = str(next_val).strip()
-
-                            for i in range(1, 6):
-                                rub_idx = col_idx + 1 + i
-                                if rub_idx < len(row):
-                                    rub_val = str(row.iloc[rub_idx]).strip()
-                                    rubrik[i] = (
-                                        rub_val if rub_val != "nan" else ""
-                                    )
-                                else:
-                                    rubrik[i] = ""
-                            break
-
-            if no_item:
-                item_list.append(
-                    {
-                        "Subtopik": current_subtopic,
-                        "No": str(no_item),
-                        "Perkara": perkara,
-                        "Rubrik": rubrik,
-                    }
-                )
-
-        if item_list:
-            data_komponen[sheet] = item_list
-
-    return data_komponen
-
-
-fail_excel = "8. MARKAH AUDIT EKSA.xlsx"
-try:
-    data_eksa = muat_data_eksa(fail_excel)
-except Exception:
-    st.error(
-        f"Gagal membaca fail Excel. Pastikan fail '{fail_excel}' wujud di dalam folder ini."
-    )
-    st.stop()
-
-
 # --- FUNGSI PENAPISAN ITEM MENGIKUT ZON ---
 def dapatkan_item_tapis(komponen, zon):
     komponen_upper = str(komponen).upper()
@@ -250,35 +257,35 @@ def dapatkan_item_tapis(komponen, zon):
     # KOMPONEN B: Ruang Tempat Kerja / Pejabat
     if "KOMPONEN B" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["B12", "B13", "B15"]
+            item_dikecualikan = ["12", "13", "15"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["B11", "B14", "B16"]
+            item_dikecualikan = ["11", "14", "16"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["B11", "B12", "B13", "B14", "B15", "B16"]
+            item_dikecualikan = ["11", "12", "13", "14", "15", "16"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["B11", "B13", "B14", "B15", "B16"]
+            item_dikecualikan = ["11", "13", "14", "15", "16"]
 
     # KOMPONEN C: Tempat Umum
     elif "KOMPONEN C" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["C5", "C6", "C7", "C8"]
+            item_dikecualikan = ["5", "6", "7", "8"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["C1", "C6", "C7"]
+            item_dikecualikan = ["1", "6", "7"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["C1", "C2", "C3", "C5", "C8"]
+            item_dikecualikan = ["1", "2", "3", "5", "8"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["C1", "C5", "C6", "C7", "C8"]
+            item_dikecualikan = ["1", "5", "6", "7", "8"]
 
     # KOMPONEN D: Bilik Pembelajaran & Pengajaran
     elif "KOMPONEN D" in komponen_upper:
         if "ZON EFEKTIF" in zon_upper:
-            item_dikecualikan = ["D3", "D4", "D5"]
+            item_dikecualikan = ["3", "4", "5"]
         elif "ZON KOMITED" in zon_upper:
-            item_dikecualikan = ["D1", "D2", "D3", "D5", "D6"]
+            item_dikecualikan = ["1", "2", "3", "5", "6"]
         elif "ZON SEPAKAT" in zon_upper:
-            item_dikecualikan = ["D1", "D5", "D6"]
+            item_dikecualikan = ["1", "5", "6"]
         elif "ZON AKTIF" in zon_upper:
-            item_dikecualikan = ["D1", "D2", "D3", "D4", "D6"]
+            item_dikecualikan = ["1", "2", "3", "4", "6"]
 
     items_asal = data_eksa.get(komponen, [])
     filtered_items = []
@@ -303,7 +310,6 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
 
     for komp in komponen_dipilih:
         rekod_komponen = data_individu.get(komp, {})
-
         items_komp = data_eksa.get(komp, [])
 
         jumlah_markah = 0
@@ -311,9 +317,15 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
 
         if rekod_komponen:
             for item in items_komp:
-                no_i = str(item["No"]).strip()
-                if no_i in rekod_komponen:
-                    val = rekod_komponen[no_i]
+                no_dig = "".join(filter(str.isdigit, str(item["No"])))
+                match_key = None
+                for k_i in rekod_komponen.keys():
+                    if "".join(filter(str.isdigit, str(k_i))) == no_dig:
+                        match_key = k_i
+                        break
+
+                if match_key:
+                    val = rekod_komponen[match_key]
                     if isinstance(val, dict):
                         m_val = val.get("Markah")
                         if m_val != "N/A" and str(m_val).isdigit():
@@ -437,6 +449,8 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
                 for item in items:
                     item_no_str = str(item["No"]).strip()
+                    item_dig = "".join(filter(str.isdigit, item_no_str))
+
                     if item["Subtopik"] != current_displayed_subtopic:
                         st.markdown(
                             f"<h3 style='color: #007BFF; margin-top: 30px;'>📑 {item['Subtopik']}</h3>",
@@ -456,24 +470,26 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
 
                     rekod_lama = data_semasa[komponen_pilihan].get(
                         item_no_str,
-                        {
-                            "Markah": "N/A",
-                            "Ulasan": "",
-                            "Senarai_Gambar": [],
-                            "Ulasan_Susulan": "",
-                            "Gambar_Susulan": None,
-                            "Tarikh_Susulan": datetime.date.today(),
-                        },
+                        data_semasa[komponen_pilihan].get(
+                            item_dig,
+                            {
+                                "Markah": "N/A",
+                                "Ulasan": "",
+                                "Senarai_Gambar": [],
+                                "Ulasan_Susulan": "",
+                                "Gambar_Susulan": None,
+                                "Tarikh_Susulan": datetime.date.today(),
+                            },
+                        ),
                     )
 
                     col1, col2, col3 = st.columns([1.2, 1.4, 1.4])
                     with col1:
                         pilihan_markah = [1, 2, 3, 4, 5, "N/A"]
                         val_lama = rekod_lama["Markah"]
-                        # Tukar ke int jika string digit
                         if str(val_lama).isdigit():
                             val_lama = int(val_lama)
-                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 5
+                        idx_default = pilihan_markah.index(val_lama) if val_lama in pilihan_markah else 4
 
                         markah = st.radio(
                             "Markah",
@@ -759,11 +775,15 @@ elif menu_paparan == "📊 Markah Audit":
                     rekod_komp = rekod_auditor.get(komp, {})
 
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
+                    no_item_sah_zon = [
+                        "".join(filter(str.isdigit, str(x["No"])))
+                        for x in item_sah_zon
+                    ]
 
                     for no_item, data in list(rekod_komp.items()):
                         no_item_str = str(no_item).strip()
-                        if no_item_str not in no_item_sah_zon:
+                        no_item_dig = "".join(filter(str.isdigit, no_item_str))
+                        if no_item_dig not in no_item_sah_zon:
                             continue
 
                         if isinstance(data, dict):
@@ -771,7 +791,8 @@ elif menu_paparan == "📊 Markah Audit":
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == no_item_str
+                                if "".join(filter(str.isdigit, str(orig["No"])))
+                                == no_item_dig
                             ]
                             perkara_txt = (
                                 padanan_item[0]["Perkara"]
@@ -984,15 +1005,18 @@ elif menu_paparan == "📊 Markah Audit":
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
+                    no_item_sah_zon = [
+                        "".join(filter(str.isdigit, str(x["No"])))
+                        for x in item_sah_zon
+                    ]
 
                     for no_item, data in rekod_komp.items():
                         no_item_str = str(no_item).strip()
+                        no_item_dig = "".join(filter(str.isdigit, no_item_str))
                         m_val = data.get("Markah") if isinstance(data, dict) else None
-                        
-                        # Semakan selamat markah 5
+
                         if (
-                            no_item_str in no_item_sah_zon
+                            no_item_dig in no_item_sah_zon
                             and str(m_val).isdigit()
                             and int(m_val) == 5
                         ):
@@ -1000,7 +1024,8 @@ elif menu_paparan == "📊 Markah Audit":
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == no_item_str
+                                if "".join(filter(str.isdigit, str(orig["No"])))
+                                == no_item_dig
                             ]
                             subtopik_item = (
                                 padanan_item[0]["Subtopik"]
@@ -1046,15 +1071,18 @@ elif menu_paparan == "📊 Markah Audit":
                 for komp in senarai_komp_laporan:
                     rekod_komp = rekod_auditor.get(komp, {})
                     item_sah_zon = dapatkan_item_tapis(komp, zon)
-                    no_item_sah_zon = [str(x["No"]).strip() for x in item_sah_zon]
+                    no_item_sah_zon = [
+                        "".join(filter(str.isdigit, str(x["No"])))
+                        for x in item_sah_zon
+                    ]
 
                     for no_item, data in rekod_komp.items():
                         no_item_str = str(no_item).strip()
+                        no_item_dig = "".join(filter(str.isdigit, no_item_str))
                         m_val = data.get("Markah") if isinstance(data, dict) else None
-                        
-                        # Semakan selamat markah <= 2 (Penukaran str ke int)
+
                         if (
-                            no_item_str in no_item_sah_zon
+                            no_item_dig in no_item_sah_zon
                             and isinstance(data, dict)
                             and str(m_val).isdigit()
                             and int(m_val) <= 2
@@ -1063,7 +1091,8 @@ elif menu_paparan == "📊 Markah Audit":
                             padanan_item = [
                                 orig
                                 for orig in data_eksa.get(komp, [])
-                                if str(orig["No"]).strip() == no_item_str
+                                if "".join(filter(str.isdigit, str(orig["No"])))
+                                == no_item_dig
                             ]
                             subtopik_item = (
                                 padanan_item[0]["Subtopik"]
@@ -1274,6 +1303,8 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
     for item in data_eksa[pilih_komp]:
         item_no_str = str(item["No"]).strip()
+        item_dig = "".join(filter(str.isdigit, item_no_str))
+
         if item["Subtopik"] != current_sub:
             total_colspan = 7 + colspan_markah
             html_jadual_rumusan += f"<tr class='subtopik-row'><td colspan='{total_colspan}'>{item['Subtopik']}</td></tr>"
@@ -1282,26 +1313,50 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
         skor_dicatat = {}
         for z in zon_rasmi_list:
             item_sebenar_zon = dapatkan_item_tapis(pilih_komp, z)
-            item_nums_zon = [str(x["No"]).strip() for x in item_sebenar_zon]
+            item_nums_zon = [
+                "".join(filter(str.isdigit, str(x["No"])))
+                for x in item_sebenar_zon
+            ]
 
-            if item_no_str not in item_nums_zon:
+            if item_dig not in item_nums_zon:
                 skor_dicatat[z] = "N/A"
             else:
                 skor_semasa = ""
-                if z in st.session_state.pangkalan_data:
-                    for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
-                        if (
-                            pilih_komp in data_auditor
-                            and item_no_str in data_auditor[pilih_komp]
-                        ):
-                            skor_val = data_auditor[pilih_komp][item_no_str].get("Markah", "")
-                            skor_semasa = skor_val
 
-                            if skor_val != "N/A" and str(skor_val).isdigit():
-                                jumlah_skor_zon[z] += int(skor_val)
-                            break
+                zon_key_match = None
+                for z_k in st.session_state.pangkalan_data.keys():
+                    if str(z_k).strip().upper() == str(z).strip().upper():
+                        zon_key_match = z_k
+                        break
 
-                skor_dicatat[z] = skor_semasa
+                if zon_key_match:
+                    dict_zon = st.session_state.pangkalan_data[zon_key_match]
+                    for aud_name, data_auditor in dict_zon.items():
+                        
+                        komp_key_match = None
+                        for k_k in data_auditor.keys():
+                            if (
+                                str(pilih_komp).strip().upper() in str(k_k).strip().upper()
+                                or str(k_k).strip().upper() in str(pilih_komp).strip().upper()
+                            ):
+                                komp_key_match = k_k
+                                break
+
+                        if komp_key_match:
+                            dict_item = data_auditor[komp_key_match]
+                            for i_k, i_v in dict_item.items():
+                                if "".join(filter(str.isdigit, str(i_k))) == item_dig:
+                                    if isinstance(i_v, dict):
+                                        skor_val = i_v.get("Markah", "")
+                                        skor_semasa = skor_val
+
+                                        if skor_val != "N/A" and str(skor_val).isdigit():
+                                            jumlah_skor_zon[z] += int(skor_val)
+                                    break
+                            if skor_semasa != "":
+                                break
+
+                skor_dicatat[z] = skor_semasa if skor_semasa != "" else "N/A"
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
@@ -1373,11 +1428,26 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         total_m = 0
         count_item = 0
 
-        if zon_nama in st.session_state.pangkalan_data:
-            dict_zon = st.session_state.pangkalan_data[zon_nama]
+        zon_match = None
+        for z_k in st.session_state.pangkalan_data.keys():
+            if str(z_k).strip().upper() == str(zon_nama).strip().upper():
+                zon_match = z_k
+                break
+
+        if zon_match:
+            dict_zon = st.session_state.pangkalan_data[zon_match]
             for nm_aud, data_aud in dict_zon.items():
-                if komp_nama in data_aud:
-                    for no_i, d_item in data_aud[komp_nama].items():
+                komp_match = None
+                for k_k in data_aud.keys():
+                    if (
+                        str(komp_nama).strip().upper() in str(k_k).strip().upper()
+                        or str(k_k).strip().upper() in str(komp_nama).strip().upper()
+                    ):
+                        komp_match = k_k
+                        break
+
+                if komp_match:
+                    for no_i, d_item in data_aud[komp_match].items():
                         if isinstance(d_item, dict) and "Markah" in d_item:
                             m_val = d_item["Markah"]
                             if m_val != "N/A" and str(m_val).isdigit():
