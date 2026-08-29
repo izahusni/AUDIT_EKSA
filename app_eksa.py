@@ -1287,8 +1287,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     text-align: center; 
 }}
 .markah-column {{
-    width: 6%;
+    width: 8%;
     text-align: center;
+    background-color: #fdebd0;
 }}
 </style>
 
@@ -1389,12 +1390,13 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 {kolum_markah_html}
 </tr>"""
 
+    # Baris Jumlah Markah Keseluruhan di bahagian bawah jadual
     kolum_jumlah_html = ""
     for z in zon_rasmi_list:
-        kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px;">{jumlah_skor_zon[z]}</td>\n'
+        kolum_jumlah_html += f'<td class="center-text" style="font-weight: bold; font-size: 14px; background-color: #fdebd0;">{jumlah_skor_zon[z]}</td>\n'
 
-    html_jadual_rumusan += f"""<tr>
-<td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px;">JUMLAH</td>
+    html_jadual_rumusan += f"""<tr style="background-color: #fae5d3;">
+<td colspan="7" style="text-align: right; font-weight: bold; font-size: 14px;">JUMLAH MARKAH</td>
 {kolum_jumlah_html}
 </tr>"""
 
