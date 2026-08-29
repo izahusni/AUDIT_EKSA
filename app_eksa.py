@@ -284,7 +284,7 @@ def dapatkan_item_tapis(komponen, zon):
     return filtered_items
 
 
-# --- FUNGSI KIRA PRESTASI ---
+# --- FUNGSI KIRA PRESTASI (MENGABAIKAN N/A) ---
 def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     ringkasan_markah = {}
     total_markah_semua = 0
@@ -297,22 +297,30 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
     for komp in komponen_dipilih:
         rekod_komponen = data_individu.get(komp, {})
 
-        item_sah = dapatkan_item_tapis(komp, zon)
-        no_item_sah = [str(x["No"]) for x in item_sah]
+        # Ambil semua item bagi komponen berkenaan
+        items_komp = data_eksa.get(komp, [])
 
         jumlah_markah = 0
-        if rekod_komponen:
-            for no_i, val in rekod_komponen.items():
-                if str(no_i) in no_item_sah and isinstance(val, dict):
-                    jumlah_markah += val["Markah"]
+        jumlah_item_dinilai = 0
 
-        jumlah_item = len(item_sah)
-        markah_penuh = jumlah_item * 5
+        if rekod_komponen:
+            for item in items_komp:
+                no_i = str(item["No"])
+                if no_i in rekod_komponen:
+                    val = rekod_komponen[no_i]
+                    if isinstance(val, dict):
+                        m_val = val.get("Markah")
+                        # Abaikan jika N/A atau tidak sah
+                        if m_val != "N/A" and str(m_val).isdigit():
+                            jumlah_markah += int(m_val)
+                            jumlah_item_dinilai += 1
+
+        markah_penuh = jumlah_item_dinilai * 5
 
         peratusan = (
             (jumlah_markah / markah_penuh) * 100 if markah_penuh > 0 else 0
         )
-        if jumlah_item > 0:
+        if markah_penuh > 0:
             ringkasan_markah[komp] = peratusan
 
         total_markah_semua += jumlah_markah
@@ -329,8 +337,6 @@ def kira_prestasi(data_individu, zon, filter_komp="Semua Komponen"):
         total_penuh_semua,
         peratusan_keseluruhan,
     )
-
-
 # --- 4. SIDEBAR LOGO ---
 fail_logo = None
 for nm in ["logo.png", "Logo.png", "LOGO.PNG", "logo.PNG", "logo.jpeg", "logo.jpg"]:
@@ -1339,36 +1345,22 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
     ]
 
     # HANYA CAMPUR ITEM SAH SUPAYA KIRAAN TEPAT PER-100
-    def kumpul_markah_zon(zon_nama, komp_nama):
-        komp_upper = str(komp_nama).upper()
-        is_komp_a_or_e = (
-            "KOMPONEN A" in komp_upper or "KOMPONEN E" in komp_upper
-        )
-
-        if zon_nama == "ZON INDUK" and not is_komp_a_or_e:
-            return 0, 0
-
-        if zon_nama != "ZON INDUK" and is_komp_a_or_e:
-            return 0, 0
-
-        item_sah = dapatkan_item_tapis(komp_nama, zon_nama)
-        no_item_sah = [str(x["No"]) for x in item_sah]
-
+   def kumpul_markah_zon(zon_nama, komp_nama):
         total_m = 0
+        count_item = 0
+
         if zon_nama in st.session_state.pangkalan_data:
             dict_zon = st.session_state.pangkalan_data[zon_nama]
             for nm_aud, data_aud in dict_zon.items():
                 if komp_nama in data_aud:
                     for no_i, d_item in data_aud[komp_nama].items():
-                        if (
-                            str(no_i) in no_item_sah
-                            and isinstance(d_item, dict)
-                            and "Markah" in d_item
-                        ):
-                            if d_item["Markah"] in [1, 2, 3, 4, 5]:
-                                total_m += d_item["Markah"]
+                        if isinstance(d_item, dict) and "Markah" in d_item:
+                            m_val = d_item["Markah"]
+                            if m_val != "N/A" and str(m_val).isdigit():
+                                total_m += int(m_val)
+                                count_item += 1
 
-        total_p = len(item_sah) * 5
+        total_p = count_item * 5
         return total_m, total_p
 
     html_kandungan = ""
