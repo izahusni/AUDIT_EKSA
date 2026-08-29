@@ -1464,16 +1464,18 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
             return "ZON INDUK" in z_upper
         return False
 
-    # Fungsi kumpul markah diperolehi & markah penuh secara automatik berdasarkan Modul Kerja / Rubrik
+    # Fungsi kumpul markah diperolehi (Key-In) & markah penuh secara automatik
     def kumpul_markah_zon(zon_nama, komp_nama):
         if is_na_zone(komp_nama, zon_nama):
             return None, None  # Penanda tidak berkenaan (-)
 
-        # Kira Markah Penuh Automatik mengikut item aktif di Modul Kerja (Borang)
+        # 1. Markah Penuh Automatik mengikut item aktif bagi zon ini
         items_tapis = dapatkan_item_tapis(komp_nama, zon_nama)
         m_penuh_automatik = len(items_tapis) * 5
 
+        # 2. Markah Diperolehi (Dikoleksi daripada input/key-in Juruaudit)
         total_m = 0
+        ada_penilaian = False
 
         zon_match = None
         for z_k in st.session_state.pangkalan_data.keys():
@@ -1499,6 +1501,7 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
                             m_val = d_item["Markah"]
                             if str(m_val).isdigit():
                                 total_m += int(m_val)
+                                ada_penilaian = True
 
         return total_m, m_penuh_automatik
 
