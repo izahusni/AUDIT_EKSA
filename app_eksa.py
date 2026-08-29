@@ -730,35 +730,31 @@ elif menu_paparan == "📊 Markah Audit":
                         }
                     )
 
-        if (
-            len(data_graf) > 1
-            or pilih_zon == "Semua Zon"
-            or pilih_auditor == "Semua Juruaudit"
-        ):
+        # Pada PAPARAN 2: MARKAH AUDIT
+        if len(data_graf) > 0 and sum(d["Markah Penuh"] for d in data_graf) > 0:
             df_graf = pd.DataFrame(data_graf)
-            if not df_graf.empty:
-                fig = px.bar(
-                    df_graf,
-                    x="Zon",
-                    y="Markah Dinilai",
-                    color="Nama Juruaudit",
-                    barmode="group",
-                    hover_data={
-                        "Lokasi": True,
-                        "Peratusan (%)": True,
-                        "Markah Penuh": True,
-                    },
-                    text="Peratusan (%)",
-                )
-                fig.update_traces(
-                    texttemplate="%{text}%", textposition="outside"
-                )
-                fig.update_layout(
-                    xaxis_title="Zon Audit", yaxis_title="Markah Dinilai"
-                )
-                st.plotly_chart(fig, use_container_width=True)
-            else:
-                st.warning("Tiada data markah direkodkan untuk tapisan ini.")
+            fig = px.bar(
+                df_graf,
+                x="Zon",
+                y="Markah Dinilai",
+                color="Nama Juruaudit",
+                barmode="group",
+                hover_data={
+                    "Lokasi": True,
+                    "Peratusan (%)": True,
+                    "Markah Penuh": True,
+                },
+                text="Peratusan (%)",
+            )
+            fig.update_traces(
+                texttemplate="%{text}%", textposition="outside"
+            )
+            fig.update_layout(
+                xaxis_title="Zon Audit", yaxis_title="Markah Dinilai"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("ℹ️ Belum ada sebarang pengisian markah dimasukkan oleh Juruaudit.")
 
         elif len(data_graf) == 1:
             st.metric(
