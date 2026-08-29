@@ -121,7 +121,7 @@ def muat_data_eksa(file_path):
     return data_komponen
 
 
-fail_excel = "8. MARKAH AUDIT EKSA.xlsx"
+fail_excel = "MARKAH AUDIT EKSA.xlsx"
 try:
     data_eksa = muat_data_eksa(fail_excel)
 except Exception:
