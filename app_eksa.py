@@ -794,12 +794,15 @@ elif menu_paparan == "📊 Markah Audit":
                                     with st.popover("✏️ Edit"):
                                         st.markdown(f"**Edit Item {no_item}**")
 
+                                        # Masukkan "N/A" ke dalam senarai pilihan dan uruskan indeks secara selamat
+                                        pilihan_edit = [1, 2, 3, 4, 5, "N/A"]
+                                        val_m = data.get("Markah", "N/A")
+                                        idx_m = pilihan_edit.index(val_m) if val_m in pilihan_edit else 0
+
                                         markah_baru = st.radio(
                                             "Markah Baharu",
-                                            [1, 2, 3, 4, 5],
-                                            index=[1, 2, 3, 4, 5].index(
-                                                data["Markah"]
-                                            ),
+                                            pilihan_edit,
+                                            index=idx_m,
                                             horizontal=True,
                                             key=f"edit_m_{zon}_{nm_auditor}_{komp}_{no_item}",
                                         )
@@ -1263,21 +1266,21 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                 skor_dicatat[z] = "N/A"
             else:
                 skor_semasa = ""
-                if z in st.session_state.pangkalan_data:
-                    for aud_name, data_auditor in st.session_state.pangkalan_data[
-                        z
-                    ].items():
-                        if (
-                            pilih_komp in data_auditor
-                            and item["No"] in data_auditor[pilih_komp]
-                        ):
-                            skor_val = data_auditor[pilih_komp][item["No"]][
-                                "Markah"
-                            ]
-                            skor_semasa = skor_val
-                            jumlah_skor_zon[z] += skor_val
-                            break
-                skor_dicatat[z] = skor_semasa
+if z in st.session_state.pangkalan_data:
+    for aud_name, data_auditor in st.session_state.pangkalan_data[z].items():
+        if (
+            pilih_komp in data_auditor
+            and item["No"] in data_auditor[pilih_komp]
+        ):
+            skor_val = data_auditor[pilih_komp][item["No"]].get("Markah", "")
+            skor_semasa = skor_val
+            
+            # Tambah ke jumlah skor HANYA jika nilainya adalah nombor (mengabaikan "N/A")
+            if skor_val != "N/A" and str(skor_val).isdigit():
+                jumlah_skor_zon[z] += int(skor_val)
+            break
+
+skor_dicatat[z] = skor_semasa
 
         kolum_markah_html = ""
         for z in zon_rasmi_list:
