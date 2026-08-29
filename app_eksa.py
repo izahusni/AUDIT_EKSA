@@ -1344,8 +1344,8 @@ elif menu_paparan == "🖨️ Laporan Penuh & Cetakan":
         "ZON AKTIF",
     ]
 
-    # HANYA CAMPUR ITEM SAH SUPAYA KIRAAN TEPAT PER-100
-   def kumpul_markah_zon(zon_nama, komp_nama):
+    # FUNGSI KUMPUL MARKAH ZON (MENGABAIKAN N/A)
+    def kumpul_markah_zon(zon_nama, komp_nama):
         total_m = 0
         count_item = 0
 
