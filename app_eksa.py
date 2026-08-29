@@ -1301,7 +1301,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
 <th colspan="{colspan_markah}" style="font-size: 14px;">MARKAH</th>
 </tr>
 <tr>
-<th colspan="2" style="width: 25%;">KEPERLUAN UTAMA PELAKSANAAN</th>
+<th colspan="2" style="width: 25%;">MARKAH</th>
 <th style="width: 11%;">1</th>
 <th style="width: 11%;">2</th>
 <th style="width: 11%;">3</th>
