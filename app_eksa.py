@@ -129,17 +129,21 @@ except Exception:
     st.stop()
 
 
-# Fungsi Membaca Data Sedia Ada Dari Google Sheets
+# Fungsi Membaca Data Sedia Ada Dari Google Sheets (Dibaiki)
 def senkron_data_dari_gsheets():
     if conn is not None:
         try:
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-            if not df_existing.empty:
+            if df_existing is not None and not df_existing.empty:
                 for _, row in df_existing.iterrows():
+                    # Elak membaca baris kosong
+                    if pd.isna(row.get("Zon")) or pd.isna(row.get("Juruaudit")):
+                        continue
+
                     z = str(row["Zon"]).strip().upper()
                     j = str(row["Juruaudit"]).strip()
-                    
                     k_raw = str(row["Komponen"]).strip().upper()
+                    
                     k = k_raw
                     for main_k in data_eksa.keys():
                         prefix_main = main_k.split(":")[0].strip().upper() if ":" in main_k else main_k.strip().upper()
@@ -147,7 +151,8 @@ def senkron_data_dari_gsheets():
                             k = main_k
                             break
 
-                    no_i = "".join(filter(str.isdigit, str(row["No_Item"])))
+                    no_i = str(row["No_Item"]).strip()
+                    no_i_dig = "".join(filter(str.isdigit, no_i))
 
                     if z not in st.session_state.pangkalan_data:
                         st.session_state.pangkalan_data[z] = {}
@@ -155,7 +160,7 @@ def senkron_data_dari_gsheets():
                         st.session_state.pangkalan_data[z][j] = {}
 
                     st.session_state.pangkalan_data[z][j]["_lokasi_khusus"] = (
-                        str(row["Lokasi"]) if pd.notna(row["Lokasi"]) else ""
+                        str(row["Lokasi"]) if pd.notna(row.get("Lokasi")) else ""
                     )
 
                     if k not in st.session_state.pangkalan_data[z][j]:
@@ -164,31 +169,32 @@ def senkron_data_dari_gsheets():
                     senarai_gbr = []
                     for idx_g in range(1, 6):
                         col_name = f"Gambar_{idx_g}"
-                        if col_name in row and pd.notna(row[col_name]):
+                        if col_name in row and pd.notna(row[col_name]) and str(row[col_name]).strip() != "":
                             senarai_gbr.append(str(row[col_name]))
 
-                    raw_markah = row["Markah"]
-                    if pd.notna(raw_markah) and str(raw_markah).isdigit():
-                        markah_val = int(raw_markah)
+                    raw_markah = row.get("Markah")
+                    if pd.notna(raw_markah) and str(raw_markah).strip() != "":
+                        try:
+                            markah_val = int(float(raw_markah))
+                        except ValueError:
+                            markah_val = None
                     else:
                         markah_val = None
 
-                    st.session_state.pangkalan_data[z][j][k][no_i] = {
+                    # Simpan data mengikut No_Item (mengemaskini jika sudah ada)
+                    st.session_state.pangkalan_data[z][j][k][no_i_dig] = {
                         "Markah": markah_val,
-                        "Ulasan": (
-                            str(row["Ulasan"]) if pd.notna(row["Ulasan"]) else ""
-                        ),
+                        "Ulasan": str(row["Ulasan"]) if pd.notna(row.get("Ulasan")) else "",
                         "Senarai_Gambar": senarai_gbr,
                         "Ulasan_Susulan": "",
                         "Gambar_Susulan": None,
                         "Tarikh_Susulan": datetime.date.today(),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            st.error(f"Gagal menyinkronkan data dari Google Sheets: {e}")
 
-
+# Panggil fungsi senkron
 senkron_data_dari_gsheets()
-
 # --- CSS KHAS ---
 st.markdown(
     """
