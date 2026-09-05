@@ -129,17 +129,21 @@ except Exception:
     st.stop()
 
 
-# Fungsi Membaca Data Sedia Ada Dari Google Sheets
+# Fungsi Membaca Data Sedia Ada Dari Google Sheets (Dibaiki)
 def senkron_data_dari_gsheets():
     if conn is not None:
         try:
             df_existing = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
-            if not df_existing.empty:
+            if df_existing is not None and not df_existing.empty:
                 for _, row in df_existing.iterrows():
+                    # Elak membaca baris kosong
+                    if pd.isna(row.get("Zon")) or pd.isna(row.get("Juruaudit")):
+                        continue
+
                     z = str(row["Zon"]).strip().upper()
                     j = str(row["Juruaudit"]).strip()
-                    
                     k_raw = str(row["Komponen"]).strip().upper()
+                    
                     k = k_raw
                     for main_k in data_eksa.keys():
                         prefix_main = main_k.split(":")[0].strip().upper() if ":" in main_k else main_k.strip().upper()
@@ -147,7 +151,8 @@ def senkron_data_dari_gsheets():
                             k = main_k
                             break
 
-                    no_i = "".join(filter(str.isdigit, str(row["No_Item"])))
+                    no_i = str(row["No_Item"]).strip()
+                    no_i_dig = "".join(filter(str.isdigit, no_i))
 
                     if z not in st.session_state.pangkalan_data:
                         st.session_state.pangkalan_data[z] = {}
@@ -155,7 +160,7 @@ def senkron_data_dari_gsheets():
                         st.session_state.pangkalan_data[z][j] = {}
 
                     st.session_state.pangkalan_data[z][j]["_lokasi_khusus"] = (
-                        str(row["Lokasi"]) if pd.notna(row["Lokasi"]) else ""
+                        str(row["Lokasi"]) if pd.notna(row.get("Lokasi")) else ""
                     )
 
                     if k not in st.session_state.pangkalan_data[z][j]:
@@ -164,29 +169,31 @@ def senkron_data_dari_gsheets():
                     senarai_gbr = []
                     for idx_g in range(1, 6):
                         col_name = f"Gambar_{idx_g}"
-                        if col_name in row and pd.notna(row[col_name]):
+                        if col_name in row and pd.notna(row[col_name]) and str(row[col_name]).strip() != "":
                             senarai_gbr.append(str(row[col_name]))
 
-                    raw_markah = row["Markah"]
-                    if pd.notna(raw_markah) and str(raw_markah).isdigit():
-                        markah_val = int(raw_markah)
+                    raw_markah = row.get("Markah")
+                    if pd.notna(raw_markah) and str(raw_markah).strip() != "":
+                        try:
+                            markah_val = int(float(raw_markah))
+                        except ValueError:
+                            markah_val = None
                     else:
                         markah_val = None
 
-                    st.session_state.pangkalan_data[z][j][k][no_i] = {
+                    # Simpan data mengikut No_Item (mengemaskini jika sudah ada)
+                    st.session_state.pangkalan_data[z][j][k][no_i_dig] = {
                         "Markah": markah_val,
-                        "Ulasan": (
-                            str(row["Ulasan"]) if pd.notna(row["Ulasan"]) else ""
-                        ),
+                        "Ulasan": str(row["Ulasan"]) if pd.notna(row.get("Ulasan")) else "",
                         "Senarai_Gambar": senarai_gbr,
                         "Ulasan_Susulan": "",
                         "Gambar_Susulan": None,
                         "Tarikh_Susulan": datetime.date.today(),
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            st.error(f"Gagal menyinkronkan data dari Google Sheets: {e}")
 
-
+# Panggil fungsi senkron
 senkron_data_dari_gsheets()
 
 # --- CSS KHAS ---
@@ -551,79 +558,64 @@ if menu_paparan == "📋 Modul Kerja (Borang)":
                 hantar = st.form_submit_button("Simpan Markah & Gambar")
 
                 if hantar:
-                    st.session_state.pangkalan_data[zon_audit][
-                        nama_juruaudit
-                    ] = data_semasa
+    st.session_state.pangkalan_data[zon_audit][nama_juruaudit] = data_semasa
 
-                    if conn is not None:
-                        try:
-                            baris_baru = []
-                            tarikh_sekarang = datetime.date.today().strftime(
-                                "%Y-%m-%d"
-                            )
+    if conn is not None:
+        try:
+            tarikh_sekarang = datetime.date.today().strftime("%Y-%m-%d")
+            
+            # Read existing GSheets data
+            try:
+                df_lama = conn.read(spreadsheet=URL_GSHEETS, ttl=0)
+            except Exception:
+                df_lama = pd.DataFrame()
 
-                            for no_i, d_item in data_semasa[
-                                komponen_pilihan
-                            ].items():
-                                padanan = [
-                                    orig
-                                    for orig in data_eksa.get(
-                                        komponen_pilihan, []
-                                    )
-                                    if str(orig["No"]).strip()
-                                    == str(no_i).strip()
-                                ]
-                                subtopik_val = (
-                                    padanan[0]["Subtopik"]
-                                    if padanan
-                                    else "KRITERIA UMUM"
-                                )
+            baris_baru = []
+            for no_i, d_item in data_semasa[komponen_pilihan].items():
+                padanan = [
+                    orig for orig in data_eksa.get(komponen_pilihan, [])
+                    if "".join(filter(str.isdigit, str(orig["No"]))) == "".join(filter(str.isdigit, str(no_i)))
+                ]
+                subtopik_val = padanan[0]["Subtopik"] if padanan else "KRITERIA UMUM"
 
-                                g_list = d_item.get("Senarai_Gambar", [])
-                                g1 = g_list[0] if len(g_list) > 0 else ""
-                                g2 = g_list[1] if len(g_list) > 1 else ""
-                                g3 = g_list[2] if len(g_list) > 2 else ""
-                                g4 = g_list[3] if len(g_list) > 3 else ""
-                                g5 = g_list[4] if len(g_list) > 4 else ""
+                g_list = d_item.get("Senarai_Gambar", [])
+                baris_baru.append({
+                    "Tarikh": tarikh_sekarang,
+                    "Zon": zon_audit,
+                    "Lokasi": lokasi_khusus,
+                    "Juruaudit": nama_juruaudit,
+                    "Komponen": komponen_pilihan,
+                    "Subtopik": subtopik_val,
+                    "No_Item": str(no_i),
+                    "Markah": str(d_item["Markah"]) if d_item["Markah"] is not None else "",
+                    "Ulasan": d_item["Ulasan"],
+                    "Gambar_1": g_list[0] if len(g_list) > 0 else "",
+                    "Gambar_2": g_list[1] if len(g_list) > 1 else "",
+                    "Gambar_3": g_list[2] if len(g_list) > 2 else "",
+                    "Gambar_4": g_list[3] if len(g_list) > 3 else "",
+                    "Gambar_5": g_list[4] if len(g_list) > 4 else "",
+                })
 
-                                baris_baru.append(
-                                    {
-                                        "Tarikh": tarikh_sekarang,
-                                        "Zon": zon_audit,
-                                        "Lokasi": lokasi_khusus,
-                                        "Juruaudit": nama_juruaudit,
-                                        "Komponen": komponen_pilihan,
-                                        "Subtopik": subtopik_val,
-                                        "No_Item": str(no_i),
-                                        "Markah": str(d_item["Markah"]) if d_item["Markah"] is not None else "",
-                                        "Ulasan": d_item["Ulasan"],
-                                        "Gambar_1": g1,
-                                        "Gambar_2": g2,
-                                        "Gambar_3": g3,
-                                        "Gambar_4": g4,
-                                        "Gambar_5": g5,
-                                    }
-                                )
+            df_baru = pd.DataFrame(baris_baru)
 
-                            df_baru = pd.DataFrame(baris_baru)
-                            try:
-                                df_lama = conn.read(
-                                    spreadsheet=URL_GSHEETS, ttl=0
-                                )
-                                df_gabung = pd.concat(
-                                    [df_lama, df_baru], ignore_index=True
-                                )
-                            except Exception:
-                                df_gabung = df_baru
+            # Buang baris lama bagi Zon, Juruaudit, dan Komponen ini untuk elak duplicate
+            if not df_lama.empty:
+                mask_padam = (
+                    (df_lama["Zon"].astype(str).str.strip().str.upper() == zon_audit.upper()) &
+                    (df_lama["Juruaudit"].astype(str).str.strip() == nama_juruaudit) &
+                    (df_lama["Komponen"].astype(str).str.strip().str.upper() == komponen_pilihan.upper())
+                )
+                df_bersih = df_lama[~mask_padam]
+                df_gabung = pd.concat([df_bersih, df_baru], ignore_index=True)
+            else:
+                df_gabung = df_baru
 
-                            conn.update(
-                                spreadsheet=URL_GSHEETS, data=df_gabung
-                            )
-                            st.success(
-                                "✅ Data dan gambar berjaya disimpan ke Google Sheets!"
-                            )
-                        except Exception as err:
-                            st.error(f"Gagal berhubung ke Google Sheets: {err}")
+            conn.update(spreadsheet=URL_GSHEETS, data=df_gabung)
+            st.success("✅ Data dan gambar berjaya disimpan ke Google Sheets!")
+            st.rerun()
+
+        except Exception as err:
+            st.error(f"Gagal berhubung ke Google Sheets: {err}")
                     else:
                         st.warning(
                             "Sambungan Google Sheets gagal dibuka. Pastikan secrets.toml telah dikonfigurasi."
