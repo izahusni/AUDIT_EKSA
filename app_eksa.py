@@ -1234,7 +1234,7 @@ elif menu_paparan == "📊 Markah Audit":
             )
 
 # ==========================================
-# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (DIBAIKI)
+# PAPARAN 3: RUMUSAN MARKAH TERPERINCI (DIBAIKI SEPENUHNYA)
 # ==========================================
 elif menu_paparan == "📈 Rumusan Markah Terperinci":
 
@@ -1242,6 +1242,9 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     st.write(
         "Paparan terperinci rubrik dan markah mengikut komponen dan zon seperti jadual rasmi."
     )
+
+    # Pastikan data terkehadiran dari Google Sheets disinkronkan semula
+    senkron_data_dari_gsheets()
 
     pilih_komp = st.selectbox("Sila Pilih Komponen:", list(data_eksa.keys()))
 
@@ -1322,7 +1325,7 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
     current_sub = ""
     jumlah_skor_zon = {z: 0 for z in zon_rasmi_list}
     
-    # Ekstrak kod komponen utama (cth: "KOMPONEN A")
+    # Ekstrak kod komponen utama (contoh: "KOMPONEN A")
     target_komp_code = pilih_komp.split(":")[0].strip().upper() if ":" in pilih_komp else pilih_komp.strip().upper()
 
     for item in data_eksa[pilih_komp]:
@@ -1354,10 +1357,17 @@ elif menu_paparan == "📈 Rumusan Markah Terperinci":
                             if aud_name.startswith("_"):
                                 continue
                             
+                            if not isinstance(data_auditor, dict):
+                                continue
+
                             # Cari padanan Komponen
                             for k_k, dict_item in data_auditor.items():
+                                if k_k.startswith("_") or not isinstance(dict_item, dict):
+                                    continue
+
                                 k_code = k_k.split(":")[0].strip().upper() if ":" in k_k else k_k.strip().upper()
                                 if target_komp_code in k_code or k_code in target_komp_code:
+                                    
                                     # Cari padanan Item Number
                                     for i_k, i_v in dict_item.items():
                                         if "".join(filter(str.isdigit, str(i_k))) == item_dig:
